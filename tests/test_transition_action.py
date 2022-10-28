@@ -1,21 +1,26 @@
 import unittest
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, State, Transition, states, transitions
 
 
-class CrazyGuy(StateMachine):
-    state('looking')
-    state('falling')
-    initial_state = 'looking'
-    transition(
-        before='looking',
-        event='jump',
-        after='falling',
-        trigger=['become_at_risk', 'accelerate'],
+class CrazyGuy(StateChart):
+    states(
+        State(
+            'looking',
+            transitions(
+                Transition(
+                    event='jump',
+                    target='falling',
+                    action=['become_at_risk', 'accelerate'],
+                )
+            ),
+        ),
+        State('falling'),
     )
+    initial = 'looking'
 
     def __init__(self):
-        StateMachine.__init__(self)
+        StateChart.__init__(self)
         self.at_risk = False
         self.accelerating = False
 
@@ -34,7 +39,7 @@ class FluidstateTransitionAction(unittest.TestCase):
         guy.jump()
         assert guy.at_risk is True
 
-    def test_it_supports_multiple_transition_triggers(self):
+    def test_it_supports_multiple_transition_actions(self):
         guy = CrazyGuy()
         assert guy.at_risk is False
         assert guy.accelerating is False

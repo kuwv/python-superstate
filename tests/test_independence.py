@@ -2,21 +2,21 @@ import unittest
 
 from fluidstate import (
     # InvalidTransition
-    StateMachine,
+    StateChart,
     state,
     transition,
 )
 
 
-class MyMachine(StateMachine):
+class MyMachine(StateChart):
 
-    initial_state = 'off'
+    initial = 'off'
 
     state('off', on_entry='inc_off')
     state('on', on_entry='inc_on')
 
-    transition(before='off', event='toggle', after='on')
-    transition(before='on', event='toggle', after='off')
+    transition(event='toggle', target='on')
+    transition(event='toggle', target='off')
 
     def __init__(self):
         self.off_count = 0
@@ -43,7 +43,7 @@ class MachineIndependence(unittest.TestCase):
         assert machine_a.state == 'on'
         assert machine_b.state == 'off'
 
-    def test_two_machines_dont_share_triggers(self):
+    def test_two_machines_dont_share_actions(self):
         machine_a = MyMachine()
         machine_b = MyMachine()
 
@@ -54,3 +54,7 @@ class MachineIndependence(unittest.TestCase):
 
         machine_a.on_count == 1
         machine_b.on_count == 0
+
+
+if __name__ == '__main__':
+    unittest.main()

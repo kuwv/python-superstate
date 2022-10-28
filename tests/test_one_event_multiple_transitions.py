@@ -2,35 +2,44 @@ import unittest
 
 from fluidstate import (
     ForkedTransition,
-    StateMachine,
-    state,
-    transition,
+    StateChart,
+    State,
+    Transition,
+    states,
+    transitions,
 )
 
 
-class LoanRequest(StateMachine):
-    state('pending')
-    state('analyzing')
-    state('refused')
-    state('accepted')
-    initial_state = 'pending'
-    transition(
-        before='pending',
-        event='analyze',
-        after='analyzing',
-        trigger='input_data',
-    )
-    transition(
-        before='analyzing',
-        event='forward_analysis_result',
-        guard='was_loan_accepted',
-        after='accepted',
-    )
-    transition(
-        before='analyzing',
-        event='forward_analysis_result',
-        guard='was_loan_refused',
-        after='refused',
+class LoanRequest(StateChart):
+    initial = 'pending'
+    states(
+        State(
+            'pending',
+            transitions(
+                Transition(
+                    event='analyze',
+                    target='analyzing',
+                    action='input_data',
+                )
+            ),
+        ),
+        State(
+            'analyzing',
+            transitions(
+                Transition(
+                    event='forward_analysis_result',
+                    cond='was_loan_accepted',
+                    target='accepted',
+                ),
+                Transition(
+                    event='forward_analysis_result',
+                    cond='was_loan_refused',
+                    target='refused',
+                ),
+            ),
+        ),
+        State('refused'),
+        State('accepted'),
     )
 
     def input_data(self, accepted=True):

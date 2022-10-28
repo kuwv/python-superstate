@@ -1,21 +1,33 @@
 import unittest
 
-from fluidstate import GuardNotSatisfied, StateMachine, state, transition
+from fluidstate import (
+    GuardNotSatisfied,
+    StateChart,
+    State,
+    Transition,
+    states,
+    transitions,
+)
 
 
-class FallingMachine(StateMachine):
-    state('looking')
-    state('falling')
-    initial_state = 'looking'
-    transition(
-        before='looking',
-        event='jump',
-        after='falling',
-        guard=['ready_to_fly', 'high_enough'],
+class FallingMachine(StateChart):
+    states(
+        State(
+            'looking',
+            transitions(
+                Transition(
+                    event='jump',
+                    target='falling',
+                    cond=['ready_to_fly', 'high_enough'],
+                )
+            ),
+        ),
+        State('falling'),
     )
+    initial = 'looking'
 
     def __init__(self, ready=True):
-        StateMachine.__init__(self)
+        StateChart.__init__(self)
         self.ready = ready
         self.high_enough_flag = True
 

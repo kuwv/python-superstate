@@ -2,36 +2,49 @@
 
 import asyncio
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, State, Transition, states, transitions
 
 
-class StopLight(StateMachine):
+class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    state('red', on_entry=lambda: print('Red light!'))
-    state('yellow', on_entry=lambda: print('Yellow light!'))
-    state('green', on_entry=lambda: print('Green light!'))
+    states(
+        State(
+            'red',
+            transitions=transitions(
+                Transition(
+                    'turn_green',
+                    target='green',
+                    action=lambda: asyncio.sleep(5),
+                )
+            ),
+            on_entry=lambda: print('Red light!'),
+        ),
+        State(
+            'yellow',
+            transitions=transitions(
+                Transition(
+                    'turn_red',
+                    target='red',
+                    action=lambda: asyncio.sleep(5),
+                )
+            ),
+            on_entry=lambda: print('Yellow light!'),
+        ),
+        State(
+            'green',
+            transitions=transitions(
+                Transition(
+                    'turn_yellow',
+                    target='yellow',
+                    action=lambda: asyncio.sleep(2),
+                )
+            ),
+            on_entry=lambda: print('Green light!'),
+        ),
+    )
 
-    initial_state: str = 'red'
-
-    transition(
-        'turn_green',
-        before='red',
-        after='green',
-        trigger=lambda: asyncio.sleep(5),
-    )
-    transition(
-        'turn_yellow',
-        before='green',
-        after='yellow',
-        trigger=lambda: asyncio.sleep(2),
-    )
-    transition(
-        'turn_red',
-        before='yellow',
-        after='red',
-        trigger=lambda: asyncio.sleep(5),
-    )
+    initial: str = 'red'
 
 
 if __name__ == '__main__':

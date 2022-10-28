@@ -1,10 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "fluidstate"
-version = "1.0.0b1"
-description = "Compact state machine in Python that can be vendored."
-readme = "README.rst"
+version = "1.1.0a0"
+description = "Compact statechart that can be vendored."
+readme = "README.md"
 license = {file = "LICENSE"}
-keywords = ["state machine", "dsl"]
+keywords = ["statechart", "state machine"]
 requires-python = ">=3.6.2"
 authors = [{name = "Jesse P. Johnson", email = "jpj6652@gmail.com"}]
 maintainers = [{name = "Jesse P. Johnson", email = "jpj6652@gmail.com"}]
@@ -21,9 +25,6 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Topic :: Software Development :: Libraries"
 ]
-
-[project.urls]
-repository = "https://github.com/kuwv/python-fluidstate"
 
 [project.optional-dependencies]
 build = [
@@ -47,20 +48,23 @@ style = [
   "flake8>=3.8.3",
 ]
 
+[project.urls]
+repository = "https://github.com/kuwv/python-fluidstate"
+
 [tool.proman.versioning]
 enable_devreleases = false
 
 [[tool.proman.versioning.files]]
-filepath = "fluidstate.py"
+filepath = "pyproject.toml"
+pattern = "version = \"${version}\""
+
+[[tool.proman.versioning.files]]
+filepath = "src/fluidstate/__init__.py"
 pattern = "__version__ = '${version}'"
 
 [[tool.proman.versioning.files]]
 filepath = "tests/test_version.py"
 pattern = "__version__ == '${version}'"
-
-[[tool.proman.versioning.files]]
-filepath = "pyproject.toml"
-pattern = "version = \"${version}\""
 
 [tool.pydocstyle]
 ignore = [
@@ -88,7 +92,3 @@ exclude = '''
   )
 )
 '''
-
-[build-system]
-requires = ["setuptools>=61.0.0"]
-build-backend = "setuptools.build_meta"

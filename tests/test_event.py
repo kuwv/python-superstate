@@ -1,29 +1,48 @@
 import unittest
 
-from fluidstate import InvalidTransition, StateMachine, state, transition
+from fluidstate import (
+    # InvalidTransition,
+    StateChart,
+    State,
+    Transition,
+    states,
+)
 
 
-class MyMachine(StateMachine):
-
-    initial_state = 'created'
-
-    state('created')
-    state('waiting')
-    state('processed')
-    state('canceled')
-
-    transition(before='created', event='queue', after='waiting')
-    transition(before='waiting', event='process', after='processed')
-    transition(before=['waiting', 'created'], event='cancel', after='canceled')
+class MyMachine(StateChart):
+    initial = 'created'
+    states(
+        State(
+            'created',
+            transitions=[
+                Transition(event='queue', target='waiting'),
+                Transition(event='cancel', target='canceled'),
+            ],
+        ),
+        State(
+            'waiting',
+            transitions=[
+                Transition(event='process', target='processed'),
+                Transition(event='cancel', target='canceled'),
+            ],
+        ),
+        State('processed'),
+        State('canceled'),
+    )
 
 
 class FluidstateEvent(unittest.TestCase):
     def test_its_declaration_creates_a_method_with_its_name(self):
         machine = MyMachine()
-        assert hasattr(machine, 'queue') and callable(machine.queue)
-        assert hasattr(machine, 'process') and callable(machine.process)
+        assert hasattr(machine.state, 'queue') and callable(
+            machine.state.queue
+        )
+        assert hasattr(machine.state, 'cancel') and callable(
+            machine.state.cancel
+        )
+        machine.queue()
 
-    def test_it_changes_machine_state(self):
+    def test_it_changes_machine_State(self):
         machine = MyMachine()
         machine.state == 'created'
         machine.queue()
@@ -31,16 +50,20 @@ class FluidstateEvent(unittest.TestCase):
         machine.process()
         machine.state == 'processed'
 
+    # XXX: invalid transition errors are local to state because of getattr
     def test_it_ensures_event_order(self):
         machine = MyMachine()
-        with self.assertRaises(InvalidTransition):
+        # with self.assertRaises(InvalidTransition):
+        with self.assertRaises(AttributeError):
             machine.process()
 
         machine.queue()
-        with self.assertRaises(InvalidTransition):
+        # with self.assertRaises(InvalidTransition):
+        with self.assertRaises(AttributeError):
             machine.queue()
+
         try:
-            machine.process
+            machine.process()
         except Exception:
             self.fail('machine process failed')
 

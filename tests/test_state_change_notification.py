@@ -1,25 +1,25 @@
 import unittest
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, state, transition
 
 
-class Door(StateMachine):
+class Door(StateChart):
 
     state('open')
     state('closed')
     state('broken')
-    initial_state = 'closed'
+    initial = 'closed'
 
-    transition(before='closed', event='open', after='open')
-    transition(before='open', event='close', after='closed')
-    transition(before='closed', event='crack', after='broken')
+    transition(event='open', target='open')
+    transition(event='close', target='closed')
+    transition(event='crack', target='broken')
 
     def __init__(self):
         self.state_changes = []
         super(Door, self).__init__()
 
-    def changing_state(self, before, after):
-        self.state_changes.append((before, after))
+    def changing_state(self, before, target):
+        self.state_changes.append((before, target))
 
 
 class StateChangeNotificationSpec(unittest.TestCase):
@@ -33,3 +33,7 @@ class StateChangeNotificationSpec(unittest.TestCase):
             ('open', 'closed'),
             ('closed', 'broken'),
         ]
+
+
+if __name__ == '__main__':
+    unittest.main()

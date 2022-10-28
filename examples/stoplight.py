@@ -2,35 +2,47 @@
 
 import time
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, State, Transition, states, transitions
 
 
-class StopLight(StateMachine):
+class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    state('red', on_entry=lambda: print('Red light!'))
-    state('yellow', on_entry=lambda: print('Yellow light!'))
-    state('green', on_entry=lambda: print('Green light!'))
-
-    initial_state: str = 'red'
-
-    transition(
-        'turn_green',
-        before='red',
-        after='green',
-        trigger=lambda: time.sleep(5),
-    )
-    transition(
-        'turn_yellow',
-        before='green',
-        after='yellow',
-        trigger=lambda: time.sleep(5),
-    )
-    transition(
-        'turn_red',
-        before='yellow',
-        after='red',
-        trigger=lambda: time.sleep(5),
+    initial: str = 'red'
+    states(
+        State(
+            name='red',
+            transitions=transitions(
+                Transition(
+                    event='turn_green',
+                    target='green',
+                    action=lambda: time.sleep(5),
+                )
+            ),
+            on_entry=lambda: print('Red light!'),
+        ),
+        State(
+            name='yellow',
+            transitions=transitions(
+                Transition(
+                    event='turn_red',
+                    target='red',
+                    action=lambda: time.sleep(5),
+                )
+            ),
+            on_entry=lambda: print('Yellow light!'),
+        ),
+        State(
+            name='green',
+            transitions=transitions(
+                Transition(
+                    event='turn_yellow',
+                    target='yellow',
+                    action=lambda: time.sleep(5),
+                )
+            ),
+            on_entry=lambda: print('Green light!'),
+        ),
     )
 
 

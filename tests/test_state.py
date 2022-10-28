@@ -1,75 +1,82 @@
 import unittest
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, State, Transition, states
 
 
-class FluidstateState(unittest.TestCase):
+class FluidState(unittest.TestCase):
     def test_it_defines_states(self):
-        class MyMachine(StateMachine):
-            state('unread')
-            state('read')
-            state('closed')
-            initial_state = 'read'
+        class MyMachine(StateChart):
+            states(State('unread'), State('read'), State('closed'))
+            initial = 'read'
 
         machine = MyMachine()
         assert len(machine.states) == 3
         assert machine.states == ['unread', 'read', 'closed']
 
-    def test_it_has_an_initial_state(self):
-        class MyMachine(StateMachine):
-            initial_state = 'closed'
-            state('open')
-            state('closed')
+    def test_it_has_an_initial(self):
+        class MyMachine(StateChart):
+            initial = 'closed'
+            states(State('open'), State('closed'))
 
         machine = MyMachine()
-        assert machine.initial_state == 'closed'
+        assert machine.initial == 'closed'
         assert machine.state == 'closed'
 
     def test_it_defines_states_using_method_calls(self):
-        class MyMachine(StateMachine):
-            state('unread')
-            state('read')
-            state('closed')
-            initial_state = 'unread'
-            transition(before='unread', event='read', after='read')
-            transition(before='read', event='close', after='closed')
+        class MyMachine(StateChart):
+            states(
+                State(
+                    'unread',
+                    [Transition(event='read', target='read')],
+                ),
+                State(
+                    'read',
+                    [Transition(event='close', target='closed')],
+                ),
+                State('closed'),
+            )
+            initial = 'unread'
 
         machine = MyMachine()
         assert len(machine.states) == 3
         assert machine.states == ['unread', 'read', 'closed']
 
-        class OtherMachine(StateMachine):
-            state('idle')
-            state('working')
-            initial_state = 'idle'
-            transition(before='idle', event='work', after='working')
+        class OtherMachine(StateChart):
+            states(
+                State(
+                    'idle',
+                    [Transition(event='work', target='working')],
+                ),
+                State('working'),
+            )
+            initial = 'idle'
 
         machine = OtherMachine()
         assert len(machine.states) == 2
         assert machine.states == ['idle', 'working']
 
-    def test_its_initial_state_may_be_a_callable(self):
+    # FIXME: cannot use lamda initialization
+    def test_its_initial_may_be_a_callable(self):
         def is_business_hours():
             return True
 
-        class Person(StateMachine):
-            initial_state = (
+        class Person(StateChart):
+            states(State('awake'), State('sleeping'))
+            initial = (
                 lambda person: (person.worker and is_business_hours())
                 and 'awake'
                 or 'sleeping'
             )
-            state('awake')
-            state('sleeping')
 
             def __init__(self, worker):
                 self.worker = worker
-                StateMachine.__init__(self)
+                super().__init__()
 
         person = Person(worker=True)
-        person.state == 'awake'
+        assert person.state == 'awake'
 
         person = Person(worker=False)
-        person.state == 'sleeping'
+        assert person.state == 'sleeping'
 
 
 if __name__ == '__main__':

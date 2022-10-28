@@ -1,18 +1,20 @@
 import unittest
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, State, Transition, states, transitions
 
 
-class ActionMachine(StateMachine):
+class ActionMachine(StateChart):
 
-    state(
-        'created',
-        on_entry='about_to_create',
-        on_exit=['other_on_exit_create', 'on_exit_create'],
+    states(
+        State(
+            'created',
+            transitions(Transition(event='queue', target='waiting')),
+            on_entry='about_to_create',
+            on_exit=['other_on_exit_create', 'on_exit_create'],
+        ),
+        State('waiting', on_entry=['pre_wait', 'other_pre_wait']),
     )
-    state('waiting', on_entry=['pre_wait', 'other_pre_wait'])
-    initial_state = 'created'
-    transition(before='created', event='queue', after='waiting')
+    initial = 'created'
 
     def __init__(self):
         self.pre_create = False
@@ -48,20 +50,22 @@ class ActionMachine(StateMachine):
 
 
 class FluidstateAction(unittest.TestCase):
-    def test_it_runs_pre_trigger_pre_machine_pres_a_given_state(self):
+    def test_it_runs_pre_action_pre_machine_pres_a_given_state(self):
         machine = ActionMachine()
         assert machine.is_pre_aware is False
         machine.queue()
         assert machine.is_pre_aware is True
 
-    def test_it_runs_on_exit_trigger_on_exit_machine_on_exits_a_given_state(self):
+    def test_it_runs_on_exit_action_on_exit_machine_on_exits_a_given_state(
+        self,
+    ):
         machine = ActionMachine()
         assert machine.is_on_exit_aware is False
         machine.queue()
         assert machine.is_pre_aware is True
 
-    def test_it_runs_on_exit_trigger_pre_pre_trigger(self):
-        """it runs old state's on_exit trigger pre new state's pre trigger"""
+    def test_it_runs_on_exit_action_pre_pre_action(self):
+        """it runs old state's on_exit action pre new state's pre action"""
         machine = ActionMachine()
 
         def on_exit_create_expectation(_self):
@@ -72,18 +76,18 @@ class FluidstateAction(unittest.TestCase):
             _self.count += 1
             assert _self.count == 2
 
-        machine.on_exit_create_expectation = on_exit_create_expectation.__get__(
-            machine, ActionMachine
+        machine.on_exit_create_expectation = (
+            on_exit_create_expectation.__get__(machine, ActionMachine)
         )
         machine.pre_wait_expectation = pre_wait_expectation.__get__(
             machine, ActionMachine
         )
         machine.queue()
 
-    def test_it_runs_pre_trigger_for_initial_state_at_creation(self):
+    def test_it_runs_pre_action_for_initial_at_creation(self):
         assert ActionMachine().pre_create is True
 
-    def test_it_accepts_many_pre_triggers(self):
+    def test_it_accepts_many_pre_actions(self):
         machine = ActionMachine()
         assert machine.pre_wait_aware is False
         assert machine.other_pre_wait_aware is False
@@ -91,7 +95,7 @@ class FluidstateAction(unittest.TestCase):
         assert machine.pre_wait_aware is True
         assert machine.other_pre_wait_aware is True
 
-    def test_it_accepts_on_exit_triggers(self):
+    def test_it_accepts_on_exit_actions(self):
         machine = ActionMachine()
         assert machine.on_exit_create_aware is False
         assert machine.other_on_exit_create_aware is False

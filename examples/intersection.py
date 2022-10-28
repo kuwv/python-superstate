@@ -2,62 +2,82 @@
 
 import time
 
-from fluidstate import StateMachine, state, transition
+from fluidstate import StateChart, State, states, transitions
 
 
-class StopLight(StateMachine):
+class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    state('red', on_entry=lambda: print('Red Light!'))
-    state('yellow', on_entry=lambda: print('Yellow light!'))
-    state('green', on_entry=lambda: print('Green light!'))
-
-    initial_state: str = 'red'
-
-    transition(
-        'turn_green',
-        before='red',
-        after='green',
-        trigger=lambda: time.sleep(5),
+    states(
+        State(
+            'red',
+            transitions=transitions(
+                {
+                    'event': 'turn_green',
+                    'target': 'green',
+                    'action': lambda: time.sleep(5),
+                }
+            ),
+            on_entry=lambda: print('Red Light!'),
+        ),
+        State(
+            'yellow',
+            transitions=transitions(
+                {
+                    'event': 'turn_red',
+                    'target': 'red',
+                    'action': lambda: time.sleep(5),
+                }
+            ),
+            on_entry=lambda: print('Yellow light!'),
+        ),
+        State(
+            'green',
+            transitions=transitions(
+                {
+                    'event': 'turn_yellow',
+                    'target': 'yellow',
+                    'action': lambda: time.sleep(2),
+                }
+            ),
+            on_entry=lambda: print('Green light!'),
+        ),
     )
-    transition(
-        'turn_yellow',
-        before='green',
-        after='yellow',
-        trigger=lambda: time.sleep(2),
-    )
-    transition(
-        'turn_red',
-        before='yellow',
-        after='red',
-        trigger=lambda: time.sleep(5),
-    )
+
+    initial: str = 'red'
 
 
-class Intersection(StateMachine):
+class Intersection(StateChart):
     """Provide an object representing an intersection."""
 
-    state('north_south', on_exit='_change_red', machine=StopLight())
-    state(
-        'east_west',
-        on_exit='_change_red',
-        machine=StopLight(initial_state='green'),
+    states(
+        State(
+            'north_south',
+            transitions=transitions(
+                {
+                    'event': 'allow_east_west',
+                    'target': 'east_west',
+                    'action': '_change_green',
+                }
+            ),
+            on_exit='_change_red',
+            machine=StopLight(),
+        ),
+        State(
+            'east_west',
+            transitions=transitions(
+                {
+                    'event': 'allow_north_south',
+                    'target': 'north_south',
+                    'action': '_change_green',
+                }
+            ),
+            on_exit='_change_red',
+            machine=StopLight(initial='green'),
+        ),
     )
 
-    initial_state: str = 'east_west'
-
-    transition(
-        event='allow_north_south',
-        before='east_west',
-        after='north_south',
-        trigger='_change_green',
-    )
-    transition(
-        event='allow_east_west',
-        before='north_south',
-        after='east_west',
-        trigger='_change_green',
-    )
+    initial: str = 'east_west'
 
     def _change_red(self) -> None:
         print(f"turning intersection {self.state} red")
