@@ -2,7 +2,7 @@
 
 # import pytest
 
-from fluidstate import StateChart, State, Transition, create_machine
+from superstate import StateChart, State, Transition, create_machine
 
 
 class Door(StateChart):

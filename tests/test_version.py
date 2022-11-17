@@ -1,5 +1,5 @@
 """Provide tests for project version."""
-from fluidstate import __version__
+from superstate import __version__
 
 
 def test_version() -> None:

@@ -2,7 +2,7 @@
 
 import time
 
-from fluidstate import StateChart, State, create_machine
+from superstate import StateChart, State, create_machine
 
 
 def get_stoplight(name: str, initial: str = 'red') -> State:

@@ -1,6 +1,6 @@
 import pytest
 
-from fluidstate import GuardNotSatisfied, StateChart, create_machine
+from superstate import GuardNotSatisfied, StateChart, create_machine
 
 
 class FallingMachine(StateChart):

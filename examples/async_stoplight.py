@@ -2,7 +2,7 @@
 
 import asyncio
 
-from fluidstate import StateChart, State, Transition, create_machine
+from superstate import StateChart, State, Transition, create_machine
 
 # XXX: somehow broke this but not sure if it ever worked
 

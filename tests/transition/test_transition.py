@@ -1,6 +1,6 @@
 import pytest
 
-from fluidstate import (
+from superstate import (
     # InvalidTransition,
     StateChart,
     create_machine,

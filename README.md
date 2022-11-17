@@ -1,4 +1,4 @@
-Fluidstate
+Superstate
 ==========
 
 Compact statechart that can be vendored.
@@ -9,7 +9,7 @@ Compact statechart that can be vendored.
 A very simple example taken from specs.
 
 ```python
->>> from fluidstate import StateChart, create_machine
+>>> from superstate import StateChart, create_machine
 
 >>> class SimpleMachine(StateChart):
 ...     create_machine(
@@ -70,7 +70,7 @@ A very simple example taken from specs.
 For demonstrating more advanced capabilities::
 
 ```python
->>> from fluidstate import StateChart, create_machine
+>>> from superstate import StateChart, create_machine
 
 >>> class Relationship(StateChart):
 ...     create_machine(
@@ -144,7 +144,7 @@ For demonstrating more advanced capabilities::
 
 ## States
 
-A Fluidstate state machine must have one initial state and at least one other additional state.
+A Superstate state machine must have one initial state and at least one other additional state.
 
 A state may have pre and post callbacks, for running some code on state *on_entry*
 and *on_exit*, respectively. These params can be method names (as strings),
@@ -157,7 +157,7 @@ Transitions lead the machine from a state to another. Transitions must have
 the *event*, and *target* parameters. The *event* is the method that have to be
 called to launch the transition. The *target* is the state to which the
 transition will move the machine. This method is automatically created
-by the Fluidstate engine.
+by the Superstate engine.
 
 A transition can have optional *action* and *cond* parameters. *action* is a
 method (or callable) that will be called when transition is launched. If
@@ -174,7 +174,7 @@ only one *cond* should return a true value at a time.
 ### Install
 
 ```
-pip install fluidstate
+pip install superstate
 ```
 
 
@@ -187,4 +187,4 @@ tox
 
 ## Attribution
 
-Fluidstate is forked from https://github.com/nsi-iff/fluidity created by Rodrigo Manhães.
+Superstate is forked from https://github.com/nsi-iff/fluidity created by Rodrigo Manhães.

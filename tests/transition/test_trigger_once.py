@@ -1,6 +1,6 @@
 import pytest
 
-from fluidstate import ForkedTransition, StateChart, create_machine
+from superstate import ForkedTransition, StateChart, create_machine
 
 
 class LoanRequest(StateChart):

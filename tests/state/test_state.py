@@ -1,6 +1,6 @@
 # import pytest
 
-from fluidstate import StateChart, create_machine
+from superstate import StateChart, create_machine
 
 
 def test_it_defines_states():
