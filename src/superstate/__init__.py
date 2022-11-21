@@ -246,7 +246,7 @@ class Transition:
         return repr(f"Transition(event={self.event}, target={self.target})")
 
     def callback(self) -> Callable:
-        def event(machine, *args, **kwargs):
+        def event(machine: 'StateChart', *args: Any, **kwargs: Any) -> None:
             machine._process_transitions(self.event, *args, **kwargs)
 
         event.__name__ = self.event
