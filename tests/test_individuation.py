@@ -1,4 +1,4 @@
-"""Fluidstate object (individuation)"""
+"""Superstate object (individuation)"""
 
 # import pytest
 

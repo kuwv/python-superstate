@@ -636,25 +636,25 @@ class StateChart(metaclass=MetaStateChart):
         return allowed[0]
 
 
-class FluidstateException(Exception):
+class SuperstateException(Exception):
     pass
 
 
-class InvalidConfig(FluidstateException):
+class InvalidConfig(SuperstateException):
     pass
 
 
-class InvalidTransition(FluidstateException):
+class InvalidTransition(SuperstateException):
     pass
 
 
-class InvalidState(FluidstateException):
+class InvalidState(SuperstateException):
     pass
 
 
-class GuardNotSatisfied(FluidstateException):
+class GuardNotSatisfied(SuperstateException):
     pass
 
 
-class ForkedTransition(FluidstateException):
+class ForkedTransition(SuperstateException):
     pass
