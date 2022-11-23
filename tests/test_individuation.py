@@ -6,7 +6,7 @@ from superstate import StateChart, State, Transition, create_machine
 
 
 class Door(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'closed',
             'states': [

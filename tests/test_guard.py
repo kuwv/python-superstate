@@ -4,7 +4,7 @@ from superstate import GuardNotSatisfied, StateChart, create_machine
 
 
 class FallingMachine(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'looking',
             'states': [

@@ -18,7 +18,7 @@ def pre_falling_function():
 
 
 class JumperGuy(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'looking',
             'states': [
@@ -70,7 +70,7 @@ def test_every_callback_is_callable():
 
 def test_deny_state_change_if_guard_callable_returns_false():
     class Door(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': 'closed',
                 'states': [

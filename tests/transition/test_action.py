@@ -2,7 +2,7 @@ from superstate import StateChart, create_machine
 
 
 class CrazyGuy(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'looking',
             'states': [

@@ -5,7 +5,7 @@ from superstate import StateChart, create_machine
 
 def test_it_defines_states():
     class MyMachine(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': 'read',
                 'states': [
@@ -23,7 +23,7 @@ def test_it_defines_states():
 
 def test_it_has_an_initial():
     class MyMachine(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': 'closed',
                 'states': [{'name': 'open'}, {'name': 'closed'}],
@@ -37,7 +37,7 @@ def test_it_has_an_initial():
 
 def test_it_defines_states_using_method_calls():
     class MyMachine(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': 'unread',
                 'states': [
@@ -61,7 +61,7 @@ def test_it_defines_states_using_method_calls():
     assert machine.states == ('unread', 'read', 'closed')
 
     class OtherMachine(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': 'idle',
                 'states': [
@@ -87,7 +87,7 @@ def test_its_initial_may_be_a_callable():
         return True
 
     class Person(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': (
                     lambda person: (person.worker and is_business_hours())

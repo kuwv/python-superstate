@@ -4,7 +4,7 @@ from superstate import StateChart, create_machine
 
 
 class Machine(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'name': 'engine',
             'initial': 'engine',

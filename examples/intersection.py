@@ -6,7 +6,7 @@ from superstate import StateChart, State, create_machine
 
 
 def get_stoplight(name: str, initial: str = 'red') -> State:
-    return create_machine(
+    return __machine__ = create_machine(
         {
             'name': name,
             'initial': initial,
@@ -52,7 +52,7 @@ def get_stoplight(name: str, initial: str = 'red') -> State:
 class Intersection(StateChart):
     """Provide an object representing an intersection."""
 
-    create_machine(
+    __machine__ = create_machine(
         {
             'name': 'intersection',
             'kind': 'parallel',
@@ -91,4 +91,6 @@ class Intersection(StateChart):
 
 if __name__ == '__main__':
     intersection = Intersection()
-    intersection.change_light()
+    for x in range(1, 5):
+        print(intersection.state)
+        intersection.change_light()

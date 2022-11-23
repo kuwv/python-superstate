@@ -8,7 +8,7 @@ from superstate import StateChart, create_machine
 class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    create_machine(
+    __machine__ = create_machine(
         {
             'name': 'stoplight',
             'initial': 'red',

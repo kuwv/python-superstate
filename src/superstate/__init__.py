@@ -61,9 +61,6 @@ GuardCondition = Union[Callable, str]
 GuardConditions = Union[GuardCondition, Iterable[GuardCondition]]
 InitialType = Union[Callable, str]
 
-STATE: Optional['State'] = None
-# enable_signature_truncation = False
-
 
 def transition(config: Union['Transition', dict]) -> 'Transition':
     if isinstance(config, Transition):
@@ -114,7 +111,6 @@ def states(*args: Any, **kwargs: Any) -> List['State']:
 
 
 def create_machine(config: Dict[str, Any], **kwargs: Any) -> 'State':
-    global STATE
     cls = kwargs.get('factory', State)
     _state = cls(
         name=config.get('name', 'root'),
@@ -124,7 +120,6 @@ def create_machine(config: Dict[str, Any], **kwargs: Any) -> 'State':
         transitions=transitions(*config.get('transitions', [])),
         **kwargs,
     )
-    STATE = _state
     return _state
 
 
@@ -215,12 +210,6 @@ class Guard:
         params = dict(signature.parameters)
 
         if len(params.keys()) != 0:
-            # _kwargs = {k: v for k, v in kwargs.items() if k in params.keys()}
-            # _args = tuple(
-            #     x
-            #     for i, x in enumerate(params.keys())
-            #     if i < (len(params.keys()) - len(_kwargs.keys()))
-            # )
             return cond(*args, **kwargs)
         return cond()
 
@@ -440,11 +429,10 @@ class MetaStateChart(type):
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
     ) -> 'MetaStateChart':
-        global STATE
+        machine = attrs.pop('__machine__') if '__machine__' in attrs else None
         obj = super(MetaStateChart, cls).__new__(cls, name, bases, attrs)
-        if STATE:
-            obj._root = STATE
-        STATE = None
+        if machine:
+            obj._root = machine
         return obj
 
 
@@ -581,11 +569,12 @@ class StateChart(metaclass=MetaStateChart):
         self.__process_transient_state()
         log.info(f"changed state to {state}")
 
-    def transition(self, event: str, statepath: Optional[str] = None) -> None:
+    def transition(self, event: str, statepath: Optional[str] = None) -> Any:
         state = self.get_state(statepath) if statepath else self.state
         for t in state.transitions:
             if t.event == event:
                 return t.callback().__get__(self, self.__class__)
+        raise AttributeError
 
     def add_state(
         self, state: 'State', statepath: Optional[str] = None

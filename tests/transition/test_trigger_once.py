@@ -4,7 +4,7 @@ from superstate import ForkedTransition, StateChart, create_machine
 
 
 class LoanRequest(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'pending',
             'states': [

@@ -4,7 +4,7 @@ from superstate import StateChart, create_machine
 
 
 class SwitchMachine(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'off',
             'states': [
@@ -41,7 +41,7 @@ def switch_machine():
 
 
 class FallingMachine(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'looking',
             'states': [

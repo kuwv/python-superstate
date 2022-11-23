@@ -8,7 +8,7 @@ from superstate import (
 
 
 class MyMachine(StateChart):
-    create_machine(
+    __machine__ = create_machine(
         {
             'initial': 'created',
             'states': [

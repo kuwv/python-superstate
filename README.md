@@ -12,7 +12,7 @@ A very simple example taken from specs.
 >>> from superstate import StateChart, create_machine
 
 >>> class SimpleMachine(StateChart):
-...     create_machine(
+...     __machine__ = create_machine(
 ...         {
 ...             'name': 'machine',
 ...             'initial': 'created',
@@ -73,7 +73,7 @@ For demonstrating more advanced capabilities::
 >>> from superstate import StateChart, create_machine
 
 >>> class Relationship(StateChart):
-...     create_machine(
+...     __machine__ = create_machine(
 ...         {
 ...             'initial': 'dating',
 ...             'states': [

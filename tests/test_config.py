@@ -17,7 +17,7 @@ def test_it_requires_at_least_two_states():
         MyMachine()
 
     class OtherMachine(StateChart):
-        create_machine({'states': [State('open')]})
+        __machine__ = create_machine({'states': [State('open')]})
 
     # There must be at least two states
     with pytest.raises(InvalidConfig):
@@ -26,14 +26,16 @@ def test_it_requires_at_least_two_states():
 
 def test_it_requires_an_initial():
     class MyMachine(StateChart):
-        create_machine({'states': [State('open'), State('closed')]})
+        __machine__ = create_machine(
+            {'states': [State('open'), State('closed')]}
+        )
 
     # There must be at least two states
     with pytest.raises(InvalidConfig):
         MyMachine()
 
     class AnotherMachine(StateChart):
-        create_machine(
+        __machine__ = create_machine(
             {
                 'initial': None,
                 'states': [State('open'), State('closed')],
