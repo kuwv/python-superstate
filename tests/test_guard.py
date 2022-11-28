@@ -1,10 +1,10 @@
 import pytest
 
-from superstate import GuardNotSatisfied, StateChart, create_machine
+from superstate import GuardNotSatisfied, StateChart, state
 
 
 class FallingMachine(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'looking',
             'states': [

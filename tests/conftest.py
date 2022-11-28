@@ -1,10 +1,10 @@
 import pytest
 
-from superstate import StateChart, create_machine
+from superstate import StateChart, state
 
 
 class SwitchMachine(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'off',
             'states': [
@@ -41,7 +41,7 @@ def switch_machine():
 
 
 class FallingMachine(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'looking',
             'states': [

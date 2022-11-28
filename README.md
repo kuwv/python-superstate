@@ -9,10 +9,10 @@ Compact statechart that can be vendored.
 A very simple example taken from specs.
 
 ```python
->>> from superstate import StateChart, create_machine
+>>> from superstate import StateChart, state
 
 >>> class SimpleMachine(StateChart):
-...     __machine__ = create_machine(
+...     __superstate__ = state(
 ...         {
 ...             'name': 'machine',
 ...             'initial': 'created',
@@ -70,10 +70,10 @@ A very simple example taken from specs.
 For demonstrating more advanced capabilities::
 
 ```python
->>> from superstate import StateChart, create_machine
+>>> from superstate import StateChart, state
 
 >>> class Relationship(StateChart):
-...     __machine__ = create_machine(
+...     __superstate__ = state(
 ...         {
 ...             'initial': 'dating',
 ...             'states': [

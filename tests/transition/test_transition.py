@@ -3,12 +3,12 @@ import pytest
 from superstate import (
     # InvalidTransition,
     StateChart,
-    create_machine,
+    state,
 )
 
 
 class MyMachine(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'created',
             'states': [

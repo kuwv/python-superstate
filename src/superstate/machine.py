@@ -39,7 +39,9 @@ class MetaStateChart(type):
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
     ) -> 'MetaStateChart':
-        machine = attrs.pop('__machine__') if '__machine__' in attrs else None
+        machine = (
+            attrs.pop('__superstate__') if '__superstate__' in attrs else None
+        )
         obj = super().__new__(cls, name, bases, attrs)
         if machine:
             obj._root = machine
@@ -172,7 +174,6 @@ class StateChart(metaclass=MetaStateChart):
         log.info("superstate is now '%s'", self.superstate)
 
         if self.state.kind == 'parallel':
-            # XXX superstate should become current state
             for substate in reversed(self.state.substates.values()):
                 substate._run_on_exit(self)
         log.info("running on-exit tasks for state '%s'", state)

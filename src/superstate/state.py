@@ -210,20 +210,6 @@ class State:
             )
 
 
-def transition(config: Union['Transition', dict]) -> 'Transition':
-    """Create transition from configuration."""
-    if isinstance(config, Transition):
-        return config
-    if isinstance(config, dict):
-        return Transition(
-            event=config['event'],
-            target=config['target'],
-            action=config.get('action'),
-            cond=config.get('cond'),
-        )
-    raise InvalidConfig('could not find a valid transition configuration')
-
-
 def state(config: Union['State', dict, str]) -> 'State':
     """Create state from configuration."""
     if isinstance(config, State):
@@ -233,7 +219,7 @@ def state(config: Union['State', dict, str]) -> 'State':
     if isinstance(config, dict):
         cls = config.get('factory', State)
         return cls(
-            name=config['name'],
+            name=config.get('name', 'superstate'),
             initial=config.get('initial'),
             kind=config.get('kind'),
             states=(states(*config['states']) if 'states' in config else []),

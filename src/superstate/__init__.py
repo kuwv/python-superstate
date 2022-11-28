@@ -52,17 +52,3 @@ __all__ = (
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
-
-
-def create_machine(config: Dict[str, Any], **kwargs: Any) -> 'State':
-    """Create statechart from configuration."""
-    cls = kwargs.get('factory', State)
-    _state = cls(
-        name=config.get('name', 'root'),
-        initial=config.get('initial'),
-        kind=config.get('kind'),
-        states=states(*config.get('states', [])),
-        transitions=transitions(*config.get('transitions', [])),
-        **kwargs,
-    )
-    return _state

@@ -2,7 +2,7 @@
 
 import asyncio
 
-from superstate import StateChart, State, Transition, create_machine
+from superstate import StateChart, State, Transition, state
 
 # XXX: somehow broke this but not sure if it ever worked
 
@@ -10,7 +10,7 @@ from superstate import StateChart, State, Transition, create_machine
 class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'red',
             'states': [

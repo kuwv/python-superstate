@@ -1,6 +1,6 @@
 import pytest
 
-from superstate import GuardNotSatisfied, StateChart, create_machine
+from superstate import GuardNotSatisfied, StateChart, state
 
 footsteps = []
 
@@ -18,7 +18,7 @@ def pre_falling_function():
 
 
 class JumperGuy(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'looking',
             'states': [
@@ -70,7 +70,7 @@ def test_every_callback_is_callable():
 
 def test_deny_state_change_if_guard_callable_returns_false():
     class Door(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': 'closed',
                 'states': [

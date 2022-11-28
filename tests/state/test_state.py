@@ -1,11 +1,11 @@
 # import pytest
 
-from superstate import StateChart, create_machine
+from superstate import StateChart, state
 
 
 def test_it_defines_states():
     class MyMachine(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': 'read',
                 'states': [
@@ -23,7 +23,7 @@ def test_it_defines_states():
 
 def test_it_has_an_initial():
     class MyMachine(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': 'closed',
                 'states': [{'name': 'open'}, {'name': 'closed'}],
@@ -37,7 +37,7 @@ def test_it_has_an_initial():
 
 def test_it_defines_states_using_method_calls():
     class MyMachine(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': 'unread',
                 'states': [
@@ -61,7 +61,7 @@ def test_it_defines_states_using_method_calls():
     assert machine.states == ('unread', 'read', 'closed')
 
     class OtherMachine(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': 'idle',
                 'states': [
@@ -87,7 +87,7 @@ def test_its_initial_may_be_a_callable():
         return True
 
     class Person(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': (
                     lambda person: (person.worker and is_business_hours())

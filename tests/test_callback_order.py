@@ -1,10 +1,10 @@
 import pytest
 
-from superstate import StateChart, create_machine
+from superstate import StateChart, state
 
 
 class CrazyGuy(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'looking',
             'states': [

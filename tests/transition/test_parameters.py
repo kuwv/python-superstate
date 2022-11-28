@@ -1,8 +1,8 @@
-from superstate import StateChart, create_machine
+from superstate import StateChart, state
 
 
 class Door(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'closed',
             'states': [

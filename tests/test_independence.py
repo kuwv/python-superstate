@@ -1,8 +1,8 @@
-from superstate import StateChart, create_machine
+from superstate import StateChart, state
 
 
 class MyMachine(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'off',
             'states': [
