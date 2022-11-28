@@ -20,15 +20,7 @@
 """Robust statechart for configurable automation rules."""
 
 import logging
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Union,
-    # cast,
-)
+from typing import Any, Dict
 
 from superstate.exception import (
     InvalidConfig,
@@ -38,8 +30,8 @@ from superstate.exception import (
     GuardNotSatisfied,
 )
 from superstate.machine import StateChart
-from superstate.state import State
-from superstate.transition import Transition
+from superstate.state import State, states, state
+from superstate.transition import Transition, transitions, transition
 
 __author__ = 'Jesse P. Johnson'
 __author_email__ = 'jpj6652@gmail.com'
@@ -60,60 +52,6 @@ __all__ = (
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
-
-EventAction = Union[Callable, str]
-EventActions = Union[EventAction, Iterable[EventAction]]
-GuardCondition = Union[Callable, str]
-GuardConditions = Union[GuardCondition, Iterable[GuardCondition]]
-InitialType = Union[Callable, str]
-
-
-def transition(config: Union['Transition', dict]) -> 'Transition':
-    """Create transition from configuration."""
-    if isinstance(config, Transition):
-        return config
-    if isinstance(config, dict):
-        return Transition(
-            event=config['event'],
-            target=config['target'],
-            action=config.get('action'),
-            cond=config.get('cond'),
-        )
-    raise InvalidConfig('could not find a valid transition configuration')
-
-
-def state(config: Union['State', dict, str]) -> 'State':
-    """Create state from configuration."""
-    if isinstance(config, State):
-        return config
-    if isinstance(config, str):
-        return State(config)
-    if isinstance(config, dict):
-        cls = config.get('factory', State)
-        return cls(
-            name=config['name'],
-            initial=config.get('initial'),
-            kind=config.get('kind'),
-            states=(states(*config['states']) if 'states' in config else []),
-            transitions=(
-                transitions(*config['transitions'])
-                if 'transitions' in config
-                else []
-            ),
-            on_entry=config.get('on_entry'),
-            on_exit=config.get('on_exit'),
-        )
-    raise InvalidConfig('could not find a valid state configuration')
-
-
-def transitions(*args: Any) -> List['Transition']:
-    """Create transitions from configuration."""
-    return list(map(transition, args))
-
-
-def states(*args: Any) -> List['State']:
-    """Create states from configuration."""
-    return list(map(state, args))
 
 
 def create_machine(config: Dict[str, Any], **kwargs: Any) -> 'State':
