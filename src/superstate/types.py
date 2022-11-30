@@ -3,7 +3,9 @@
 from typing import Callable, Iterable, Optional, Union
 
 from superstate.exception import InvalidConfig
+from superstate.state import CompoundState, ParallelState
 
+CompositeState = Union[CompoundState, ParallelState]
 EventAction = Union[Callable, str]
 EventActions = Union[EventAction, Iterable[EventAction]]
 GuardCondition = Union[Callable, str]

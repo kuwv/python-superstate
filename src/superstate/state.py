@@ -2,11 +2,12 @@
 
 import logging
 
+from abc import ABC, abstractmethod
 from types import new_class
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from superstate.common import Action
-from superstate.exception import InvalidConfig
+from superstate.exception import InvalidConfig, InvalidTransition
 from superstate.transition import Transition, transitions
 
 # from superstate.types import NameDescriptor
@@ -21,11 +22,15 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class State:
+class State(ABC):
     # name = cast(str, NameDescriptor('_name'))
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.name = name
+
+    @property
+    def kind(self) -> 'str':
+        return 'pseudostate'
 
     def __repr__(self) -> str:
         return repr(f"State({self.name})")
@@ -37,13 +42,21 @@ class State:
             return self.name == other
         return False
 
+    @abstractmethod
+    def _run_on_entry(self, machine: 'StateChart') -> None:
+        """Run on-entry tasks."""
 
-class HistoryState(State):
+    @abstractmethod
+    def _run_on_exit(self, machine: 'StateChart') -> None:
+        """Run on-exit tasks."""
+
+
+class HistoryState:
     __history: str
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
         self.__history = kwargs.get('history', 'shallow')
-        super().__init__(name, *args, **kwargs)
+        # super().__init__(name, *args, **kwargs)
 
     @property
     def kind(self) -> str:
@@ -74,6 +87,9 @@ class FinalState(State):
                 "executed 'on_entry' state change action for %s", self.name
             )
 
+    def _run_on_exit(self, machine: 'StateChart') -> None:
+        raise InvalidTransition('final state cannot transition once entered')
+
 
 class AtomicState(FinalState):
     name: str
@@ -93,6 +109,34 @@ class AtomicState(FinalState):
             log.info(
                 "executed 'on_exit' state change action for %s", self.name
             )
+
+
+class CompositeState(AtomicState):
+    @property
+    def kind(self) -> str:
+        return 'parallel'
+
+    @property
+    @abstractmethod
+    def substates(self) -> Dict[str, 'State']:
+        """Return substates."""
+
+    @property
+    @abstractmethod
+    def transitions(self) -> Tuple['Transition', ...]:
+        """Return transitions of this state."""
+
+    @abstractmethod
+    def get_transition(self, event: str) -> Tuple['Transition', ...]:
+        """Get each transition maching event."""
+
+    @abstractmethod
+    def add_state(self, state: 'State') -> None:
+        """Add substate to this state."""
+
+    @abstractmethod
+    def add_transition(self, transition: 'Transition') -> None:
+        """Add transition to this state."""
 
 
 class ParallelState(AtomicState):
@@ -286,8 +330,8 @@ def state(config: Union['State', dict, str]) -> 'State':
             factory = CompoundState if 'initial' in config else ParallelState
         elif statetype == 'final':
             factory = FinalState
-        elif statetype == 'history' or 'history' in config:
-            factory = HistoryState
+        # elif statetype == 'history' or 'history' in config:
+        #     factory = HistoryState
         elif statetype == 'atomic':
             factory = AtomicState
 

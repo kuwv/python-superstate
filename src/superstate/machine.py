@@ -19,6 +19,7 @@ from superstate.exception import (
     ForkedTransition,
     GuardNotSatisfied,
 )
+from superstate.state import CompositeState, CompoundState, ParallelState
 
 if TYPE_CHECKING:
     from superstate.state import State
@@ -81,7 +82,9 @@ class StateChart(metaclass=MetaStateChart):
                 'attempted initialization with empty superstate'
             )
 
-        self.__process_initial(initial or self.superstate.initial)
+        if not initial and isinstance(self.superstate, CompoundState):
+            initial = self.supertate.initial
+        self.__process_initial(initial)
         log.info('loaded states and transitions')
 
         if kwargs.get('enable_start_transition', True):
@@ -118,7 +121,11 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def initial(self) -> Optional['InitialType']:
         """Provide current initial state from superstate."""
-        return self.superstate.initial
+        return (
+            self.superstate.initial
+            if isinstance(self.superstate, CompoundState)
+            else None
+        )
 
     @property
     def transitions(self) -> Tuple['Transition', ...]:
@@ -127,11 +134,12 @@ class StateChart(metaclass=MetaStateChart):
         return tuple(
             self.state.transitions + self.superstate.transitions
             if self.state != self.superstate
-            else self.state.transitions
+            and isinstance(self.state, CompositeState)
+            else self.superstate.transitions
         )
 
     @property
-    def superstate(self) -> 'State':
+    def superstate(self) -> CompositeState:
         """Return superstate."""
         return self.__superstate
 
@@ -154,7 +162,7 @@ class StateChart(metaclass=MetaStateChart):
         subpaths = statepath.split('.')
         current = self.state if statepath.startswith('.') else self.__root
         for i, state in enumerate(subpaths):
-            if current != state:
+            if current != state and isinstance(current, CompositeState):
                 current = current.substates[state]
             if i == (len(subpaths) - 1):
                 log.info("found state '%s'", current.name)
@@ -166,15 +174,17 @@ class StateChart(metaclass=MetaStateChart):
         log.info('changing state from %s', state)
         # XXX: might not want target selection to be callable
         # state = state(self) if callable(state) else state
-        superstate = state.split('.')[:-1]
-        self.__superstate = (
-            self.get_state('.'.join(superstate))
-            if superstate != []
+        superstate_path = state.split('.')[:-1]
+        superstate = (
+            self.get_state('.'.join(superstate_path))
+            if superstate_path != []
             else self.__root
         )
+        if isinstance(superstate, CompositeState):
+            self.__superstate = superstate
         log.info("superstate is now '%s'", self.superstate)
 
-        if self.state.kind == 'parallel':
+        if isinstance(self.state, CompositeState):
             for substate in reversed(self.state.substates.values()):
                 substate._run_on_exit(self)
         log.info("running on-exit tasks for state '%s'", state)
@@ -186,11 +196,11 @@ class StateChart(metaclass=MetaStateChart):
         log.info("running on-entry tasks for state: '%s'", state)
         self.state._run_on_entry(self)
 
-        if self.state.kind in ('compound', 'parallel'):
+        if isinstance(self.state, CompositeState):
             self.__superstate = self.state
-            if self.state.kind == 'compound':
+            if isinstance(self.state, CompoundState):
                 self.__process_initial(self.state.initial)
-            if self.state.kind == 'parallel':
+            elif isinstance(self.state, ParallelState):
                 # TODO: is this a better usecase for MP?
                 for substate in self.state.substates.values():
                     substate._run_on_entry(self)
@@ -200,46 +210,59 @@ class StateChart(metaclass=MetaStateChart):
     def transition(self, event: str, statepath: Optional[str] = None) -> Any:
         """Transition from event to target state."""
         state = self.get_state(statepath) if statepath else self.state
-        for transition in state.transitions:
-            if transition.event == event:
-                print('here', transition.event)
-                # return transition.callback().__get__(self, self.__class__)
-                return transition.callback()
-        raise AttributeError
+        if isinstance(state, CompositeState):
+            for transition in state.transitions:
+                if transition.event == event:
+                    print('here', transition.event)
+                    # return transition.callback().__get__(
+                    #     self, self.__class__
+                    # )
+                    return transition.callback()
+            raise AttributeError
+        raise InvalidTransition('transition cannot be done from %s', state)
 
     def add_state(
         self, state: 'State', statepath: Optional[str] = None
     ) -> None:
         """Add state to either superstate or target state."""
         parent = self.get_state(statepath) if statepath else self.superstate
-        parent.add_state(state)
-        log.info('added state %s', state.name)
+        if isinstance(parent, CompositeState):
+            parent.add_state(state)
+            log.info('added state %s', state.name)
 
     def add_transition(
         self, transition: 'Transition', statepath: Optional[str] = None
     ) -> None:
         """Add transition to either superstate or target state."""
         target = self.get_state(statepath) if statepath else self.superstate
-        target.add_transition(transition)
-        log.info('added transition %s', transition.event)
+        if isinstance(target, CompositeState):
+            target.add_transition(transition)
+            log.info('added transition %s', transition.event)
+        # else:
+        #     raise InvalidState(
+        #         'cannot add transition to %s as %s state',
+        #         target,
+        #         target.kind
+        #     )
 
     def _process_transitions(
         self, event: str, *args: Any, **kwargs: Any
     ) -> None:
         # TODO: need to consider superstate transitions.
-        _transitions = self.state.get_transition(event)
-        # _transitions += self.superstate.get_transition(event)
-        if _transitions == []:
-            raise InvalidTransition('no transitions match event')
-        _transition = self.__evaluate_guards(_transitions, *args, **kwargs)
-        _transition.run(self, *args, **kwargs)
-        log.info("processed transition event '%s'", _transition.event)
+        if isinstance(self.state, CompositeState):
+            _transitions = self.state.get_transition(event)
+            # _transitions += self.superstate.get_transition(event)
+            if _transitions == []:
+                raise InvalidTransition('no transitions match event')
+            _transition = self.__evaluate_guards(_transitions, *args, **kwargs)
+            _transition.run(self, *args, **kwargs)
+            log.info("processed transition event '%s'", _transition.event)
 
     def __process_initial(
         self, initial: Optional['InitialType'] = None
     ) -> None:
         # TODO: process history state if defined
-        if self.superstate.kind != 'parallel':
+        if isinstance(self.superstate, CompoundState):
             if initial:
                 _initial = initial(self) if callable(initial) else initial
                 self.__state = self.get_state(_initial)
@@ -249,10 +272,11 @@ class StateChart(metaclass=MetaStateChart):
                 )
 
     def __process_transient_state(self) -> None:
-        for transition in self.state.transitions:
-            if transition.event == '':
-                self._auto_()
-                break
+        if isinstance(self.state, CompositeState):
+            for transition in self.state.transitions:
+                if transition.event == '':
+                    self._auto_()
+                    break
 
     def __evaluate_guards(
         self, transitions: Tuple['Transition', ...], *args: Any, **kwargs: Any
