@@ -2,11 +2,11 @@
 
 # import pytest
 
-from superstate import StateChart, State, Transition, create_machine
+from superstate import StateChart, State, Transition, state
 
 
 class Door(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'closed',
             'states': [

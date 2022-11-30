@@ -2,13 +2,13 @@
 
 import time
 
-from superstate import StateChart, create_machine
+from superstate import StateChart, state
 
 
 class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'name': 'stoplight',
             'initial': 'red',

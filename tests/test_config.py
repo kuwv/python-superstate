@@ -4,7 +4,7 @@ from superstate import (
     InvalidConfig,
     StateChart,
     State,
-    create_machine,
+    state,
 )
 
 
@@ -17,7 +17,7 @@ def test_it_requires_at_least_two_states():
         MyMachine()
 
     class OtherMachine(StateChart):
-        __machine__ = create_machine({'states': [State('open')]})
+        __superstate__ = state({'states': [State('open')]})
 
     # There must be at least two states
     with pytest.raises(InvalidConfig):
@@ -26,7 +26,7 @@ def test_it_requires_at_least_two_states():
 
 def test_it_requires_an_initial():
     class MyMachine(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {'states': [State('open'), State('closed')]}
         )
 
@@ -35,7 +35,7 @@ def test_it_requires_an_initial():
         MyMachine()
 
     class AnotherMachine(StateChart):
-        __machine__ = create_machine(
+        __superstate__ = state(
             {
                 'initial': None,
                 'states': [State('open'), State('closed')],

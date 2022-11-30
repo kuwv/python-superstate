@@ -1,10 +1,10 @@
 import pytest
 
-from superstate import ForkedTransition, StateChart, create_machine
+from superstate import ForkedTransition, StateChart, state
 
 
 class LoanRequest(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'pending',
             'states': [

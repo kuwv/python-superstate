@@ -1,8 +1,8 @@
-from superstate import StateChart, State, Transition, create_machine
+from superstate import StateChart, State, Transition, state
 
 
 class JumperGuy(StateChart):
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'initial': 'looking',
             'states': [

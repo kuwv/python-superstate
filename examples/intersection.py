@@ -2,11 +2,11 @@
 
 import time
 
-from superstate import StateChart, State, create_machine
+from superstate import StateChart, State, state
 
 
 def get_stoplight(name: str, initial: str = 'red') -> State:
-    return __machine__ = create_machine(
+    return __superstate__ = state(
         {
             'name': name,
             'initial': initial,
@@ -52,7 +52,7 @@ def get_stoplight(name: str, initial: str = 'red') -> State:
 class Intersection(StateChart):
     """Provide an object representing an intersection."""
 
-    __machine__ = create_machine(
+    __superstate__ = state(
         {
             'name': 'intersection',
             'kind': 'parallel',
