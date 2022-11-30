@@ -86,7 +86,8 @@ class StateChart(metaclass=MetaStateChart):
 
         if kwargs.get('enable_start_transition', True):
             self.__state._run_on_entry(self)
-            self.__process_transient_state()
+            if self.state.kind == 'compound':
+                self.__process_transient_state()
         log.info('statemachine initialization complete')
 
     def __getattr__(self, name: str) -> Any:
@@ -238,11 +239,14 @@ class StateChart(metaclass=MetaStateChart):
         self, initial: Optional['InitialType'] = None
     ) -> None:
         # TODO: process history state if defined
-        if initial and self.superstate.kind != 'parallel':
-            _initial = initial(self) if callable(initial) else initial
-            self.__state = self.get_state(_initial)
-        elif not self.initial:
-            raise InvalidConfig('an initial state must exist for statechart')
+        if self.superstate.kind != 'parallel':
+            if initial:
+                _initial = initial(self) if callable(initial) else initial
+                self.__state = self.get_state(_initial)
+            elif not self.initial:
+                raise InvalidConfig(
+                    'an initial state must exist for statechart'
+                )
 
     def __process_transient_state(self) -> None:
         for transition in self.state.transitions:
