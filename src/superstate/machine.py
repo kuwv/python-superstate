@@ -53,6 +53,8 @@ class StateChart(metaclass=MetaStateChart):
     """Represent statechart capabilities."""
 
     __slots__ = ['__states', '__dict__']
+    __state: Union['CompositeState', 'State']
+    __superstate: 'CompositeState'
 
     def __init__(
         self,
@@ -88,7 +90,7 @@ class StateChart(metaclass=MetaStateChart):
         log.info('loaded states and transitions')
 
         if kwargs.get('enable_start_transition', True):
-            self.__state._run_on_entry(self)
+            self.__state.run_on_entry(self)
             if self.state.kind == 'compound':
                 self.__process_transient_state()
         log.info('statemachine initialization complete')
@@ -186,15 +188,15 @@ class StateChart(metaclass=MetaStateChart):
 
         if isinstance(self.state, CompositeState):
             for substate in reversed(self.state.substates.values()):
-                substate._run_on_exit(self)
+                substate.run_on_exit(self)
         log.info("running on-exit tasks for state '%s'", state)
-        self.state._run_on_exit(self)
+        self.state.run_on_exit(self)
 
         self.__state = self.get_state(state)
         log.info('state is now: %s', state)
 
         log.info("running on-entry tasks for state: '%s'", state)
-        self.state._run_on_entry(self)
+        self.state.run_on_entry(self)
 
         if isinstance(self.state, CompositeState):
             self.__superstate = self.state
@@ -203,7 +205,7 @@ class StateChart(metaclass=MetaStateChart):
             elif isinstance(self.state, ParallelState):
                 # TODO: is this a better usecase for MP?
                 for substate in self.state.substates.values():
-                    substate._run_on_entry(self)
+                    substate.run_on_entry(self)
         self.__process_transient_state()
         log.info('changed state to %s', state)
 
