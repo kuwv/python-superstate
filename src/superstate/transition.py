@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from superstate.machine import StateChart
     from superstate.types import EventActions, GuardConditions
 
-
 log = logging.getLogger(__name__)
 
 
@@ -41,7 +40,7 @@ class Transition:
 
         def event(machine: 'StateChart', *args: Any, **kwargs: Any) -> None:
             """Provide callback event."""
-            machine._process_transitions(self.event, *args, **kwargs)
+            machine.process_transitions(self.event, *args, **kwargs)
 
         event.__name__ = self.event
         event.__doc__ = f"Show event: '{self.event}'."

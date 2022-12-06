@@ -5,11 +5,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 
 from superstate.common import Action
 from superstate.exception import InvalidConfig
-from superstate.transition import Transition, transitions
+from superstate.transition import transitions
 from superstate.types import NameDescriptor
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
+    from superstate.transition import Transition
     from superstate.types import (
         EventActions,
         InitialType,
@@ -66,6 +67,7 @@ class State:
     ]
     name = cast(str, NameDescriptor('_name'))
     __initial: Optional['InitialType']
+    __history: Optional[str]
     __on_entry: Optional['EventActions']
     __on_exit: Optional['EventActions']
 
@@ -178,9 +180,9 @@ class State:
         """Return transitions of this state."""
         return tuple(self.__transitions)
 
-    def add_state(self, state: 'State') -> None:
+    def add_state(self, st: 'State') -> None:
         """Add substate to this state."""
-        self.__substates[state.name] = state
+        self.__substates[st.name] = st
 
     def add_transition(self, transition: 'Transition') -> None:
         """Add transition to this state."""
@@ -195,14 +197,16 @@ class State:
             )
         )
 
-    def _run_on_entry(self, machine: 'StateChart') -> None:
+    def run_on_entry(self, machine: 'StateChart') -> None:
+        """Run actions on state entry."""
         if self.__on_entry is not None and self.kind != 'history':
             Action(machine).run(self.__on_entry)
             log.info(
                 "executed 'on_entry' state change action for %s", self.name
             )
 
-    def _run_on_exit(self, machine: 'StateChart') -> None:
+    def run_on_exit(self, machine: 'StateChart') -> None:
+        """Run actions on state exit."""
         if self.__on_exit is not None and self.kind != 'history':
             Action(machine).run(self.__on_exit)
             log.info(
