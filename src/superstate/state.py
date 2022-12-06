@@ -19,43 +19,46 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-# class MetaState(type):
-#     """Instantiate state types from class metadata."""
-#
-#     # _initial: Optional[Union[Callable, str]]
-#     _states: List['State']
-#     _transitions: List['State']
-#     # _on_entry:
-#     # _on_exit:
-#
-#     def __new__(
-#         cls,
-#         name: str,
-#         bases: Tuple[type, ...],
-#         attrs: Dict[str, Any],
-#     ) -> 'MetaState':
-#         # initial = attrs.pop('initial', None)
-#         # kind = attrs.pop('kind')
-#         states = attrs.pop('__states__', None)
-#         transitions = attrs.pop('__transitions__', None)
-#         # on_entry = attrs.pop('on_entry', None)
-#         # on_exit = attrs.pop('on_exit', None)
-#
-#         obj = type.__new__(cls, name, bases, attrs)
-#         # obj._initial = states
-#         obj._states = states
-#         obj._transitions = transitions
-#         # obj._on_entry = on_entry
-#         # obj._on_exit = on_exit
-#
-#         return obj
+class MetaState(type):
+    """Instantiate state types from class metadata."""
+
+    _initial: Optional['InitialType']
+    _kind: Optional[str]
+    _states: List['State']
+    _transitions: List['State']
+    _on_entry: Optional['EventActions']
+    _on_exit: Optional['EventActions']
+
+    def __new__(
+        cls,
+        name: str,
+        bases: Tuple[type, ...],
+        attrs: Dict[str, Any],
+    ) -> 'MetaState':
+        _initial = attrs.pop('__initial__', None)
+        _kind = attrs.pop('__kind__', None)
+        _states = attrs.pop('__states__', None)
+        _transitions = attrs.pop('__transitions__', None)
+        _on_entry = attrs.pop('__on_entry__', None)
+        _on_exit = attrs.pop('__on_exit__', None)
+
+        obj = type.__new__(cls, name, bases, attrs)
+        obj._initial = _initial
+        obj._kind = _kind
+        obj._states = _states
+        obj._transitions = _transitions
+        obj._on_entry = _on_entry
+        obj._on_exit = _on_exit
+
+        return obj
 
 
-class State:
+# pylint: disable=too-many-instance-attributes
+class State(metaclass=MetaState):
     """Manage state representation for statechart."""
 
     __slots__ = [
-        '_name',
+        '__id',
         '__initial',
         '__substate',
         '__substates',
@@ -65,9 +68,9 @@ class State:
         '__kind',
         '__dict__',
     ]
-    name = cast(str, NameDescriptor('_name'))
+    __name = cast(str, NameDescriptor('_name'))
     __initial: Optional['InitialType']
-    __history: Optional[str]
+    # __history: Optional[str]
     __on_entry: Optional['EventActions']
     __on_exit: Optional['EventActions']
 
@@ -79,7 +82,7 @@ class State:
     ) -> None:
         if not name.replace('_', '').isalnum():
             raise InvalidConfig('state name contains invalid characters')
-        self.name = name
+        self.__id = name
         self.__kind = kwargs.get('kind')
         self.__substate = self
 
@@ -89,11 +92,11 @@ class State:
             self.__register_transition_callback(transition)
 
         self.__initial = kwargs.get('initial')
-        self.__history = (
-            kwargs.get('history', 'shallow')
-            if self.kind == 'history'
-            else None
-        )
+        # self.__history = (
+        #     kwargs.get('history', 'shallow')
+        #     if self.kind == 'history'
+        #     else None
+        # )
         # FIXME: pseudostates should not include triggers
         self.__on_entry = kwargs.get('on_entry')
         self.__on_exit = kwargs.get('on_exit')
@@ -135,6 +138,11 @@ class State:
         log.info('evaluated state')
 
     @property
+    def name(self) -> str:
+        """Return name of state."""
+        return self.__id
+
+    @property
     def initial(self) -> Optional['InitialType']:
         """Return initial substate if defined."""
         return self.__initial
@@ -160,10 +168,10 @@ class State:
             kind = 'atomic'
         return kind
 
-    @property
-    def history(self) -> Optional[str]:
-        """Return previous substate."""
-        return self.__history
+    # @property
+    # def history(self) -> Optional[str]:
+    #     """Return previous substate."""
+    #     return self.__history
 
     @property
     def substate(self) -> 'State':
