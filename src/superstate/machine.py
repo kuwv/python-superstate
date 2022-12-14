@@ -5,11 +5,11 @@ from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
+    # Callable,
     Dict,
     Optional,
     Tuple,
-    Union,
+    # Union,
 )
 
 from superstate.exception import (
@@ -55,7 +55,7 @@ class StateChart(metaclass=MetaStateChart):
 
     def __init__(
         self,
-        initial: Optional[Union[Callable, str]] = None,
+        # *args: Any,
         **kwargs: Any,
     ) -> None:
         if 'logging_enabled' in kwargs and kwargs['logging_enabled']:
@@ -76,17 +76,21 @@ class StateChart(metaclass=MetaStateChart):
             self.__state = self.__superstate = self.__root = deepcopy(
                 self.__class__._root
             )
+        elif 'superstate' in kwargs:
+            self.__state = self.__superstate = self.__root = deepcopy(
+                kwargs['superstate']
+            )
         else:
             raise InvalidConfig(
                 'attempted initialization with empty superstate'
             )
 
-        self.__process_initial(initial or self.superstate.initial)
+        self.__process_initial(kwargs.get('initial', self.superstate.initial))
         log.info('loaded states and transitions')
 
         if kwargs.get('enable_start_transition', True):
             self.__state.run_on_entry(self)
-            self.__process_transient_state()
+            self.__process_on_entry()
         log.info('statemachine initialization complete')
 
     def __getattr__(self, name: str) -> Any:
@@ -100,10 +104,6 @@ class StateChart(metaclass=MetaStateChart):
                         return True
             return self.state.name == name[3:]
 
-        # for key in list(self.states):
-        #     if key == name:
-        #         return self.__items[name]
-
         if self.state.kind == 'final':
             raise InvalidTransition('final state cannot transition')
 
@@ -112,6 +112,10 @@ class StateChart(metaclass=MetaStateChart):
                 transition.event == '' and name == '_auto_'
             ):
                 return transition.callback().__get__(self, self.__class__)
+
+        for key in list(self.states):
+            if key == name:
+                return self.__superstate.substates[name]
         raise AttributeError
 
     @property
@@ -151,7 +155,9 @@ class StateChart(metaclass=MetaStateChart):
     def get_state(self, statepath: str) -> 'State':
         """Get state from query path."""
         subpaths = statepath.split('.')
+        print('subpaths', subpaths)
         current = self.state if statepath.startswith('.') else self.__root
+        print('current', current.name)
         for i, state in enumerate(subpaths):
             if current != state:
                 current = current.substates[state]
@@ -160,22 +166,23 @@ class StateChart(metaclass=MetaStateChart):
                 return current
         raise InvalidState(f"state could not be found: {statepath}")
 
-    def change_state(self, state: str) -> None:
-        """Change current state to target state."""
-        log.info('changing state from %s', state)
-        # XXX: might not want target selection to be callable
-        # state = state(self) if callable(state) else state
-        superstate = state.split('.')[:-1]
-        self.__superstate = (
-            self.get_state('.'.join(superstate))
-            if superstate != []
+    def __change_superstate(self, state: str) -> None:
+        superstate_path = state.split('.')[:-1]
+        superstate = (
+            self.get_state('.'.join(superstate_path))
+            if superstate_path != []
             else self.__root
         )
-        log.info("superstate is now '%s'", self.superstate)
-
-        if self.state.kind == 'parallel':
-            for substate in reversed(self.state.substates.values()):
+        if superstate.kind == 'parallel':
+            for substate in reversed(self.superstate.substates.values()):
                 substate.run_on_exit(self)
+            # if 'state' not in self.superstate.substates:
+            #     self.__change_state(state)
+
+        self.__superstate = superstate
+        log.info("superstate is now %s", self.superstate)
+
+    def __change_state(self, state: str) -> None:
         log.info("running on-exit tasks for state '%s'", state)
         self.state.run_on_exit(self)
 
@@ -185,26 +192,37 @@ class StateChart(metaclass=MetaStateChart):
         log.info("running on-entry tasks for state: '%s'", state)
         self.state.run_on_entry(self)
 
+    def __process_on_entry(self) -> None:
         if self.state.kind in ('compound', 'parallel'):
             self.__superstate = self.state
+            # print('---', self.__superstate.name, self.__superstate.kind)
             if self.state.kind == 'compound':
                 self.__process_initial(self.state.initial)
             if self.state.kind == 'parallel':
                 # TODO: is this a better usecase for MP?
                 for substate in self.state.substates.values():
                     substate.run_on_entry(self)
+                    # XXX: all substates of parallel should be compound
+                    self.__process_initial(substate.initial)
         self.__process_transient_state()
+
+    def change_state(self, state: str) -> None:
+        """Change current state to target state."""
+        log.info('changing state from %s', state)
+        self.__change_superstate(state)
+        self.__change_state(state)
+        self.__process_on_entry()
         log.info('changed state to %s', state)
 
-    def transition(self, event: str, statepath: Optional[str] = None) -> Any:
+    def transition(self, event: str, *args, **kwargs: Any) -> Any:
         """Transition from event to target state."""
+        statepath = kwargs.get('statepath')
         state = self.get_state(statepath) if statepath else self.state
         for transition in state.transitions:
             if transition.event == event:
-                print('here', transition.event)
-                # return transition.callback().__get__(self, self.__class__)
-                return transition.callback()
-        raise AttributeError
+                log.info("transitioning to '%s'", event)
+                return transition.callback()(self, *args, **kwargs)
+        raise AttributeError("transition '%s' not found", event)
 
     def add_state(
         self, state: 'State', statepath: Optional[str] = None
@@ -225,8 +243,12 @@ class StateChart(metaclass=MetaStateChart):
     def process_transitions(
         self, event: str, *args: Any, **kwargs: Any
     ) -> None:
+        """Process transitions of a state change."""
+        statepath = kwargs.get('statepath')
+        state = self.get_state(statepath) if statepath else self.state
+
         # TODO: need to consider superstate transitions.
-        _transitions = self.state.get_transition(event)
+        _transitions = state.get_transition(event)
         # _transitions += self.superstate.get_transition(event)
         if _transitions == []:
             raise InvalidTransition('no transitions match event')
@@ -237,12 +259,15 @@ class StateChart(metaclass=MetaStateChart):
     def __process_initial(
         self, initial: Optional['InitialType'] = None
     ) -> None:
-        # TODO: process history state if defined
-        if initial and self.superstate.kind != 'parallel':
-            _initial = initial(self) if callable(initial) else initial
-            self.__state = self.get_state(_initial)
-        elif not self.initial:
-            raise InvalidConfig('an initial state must exist for statechart')
+        if self.superstate.kind != 'parallel':
+            # TODO: process history state if defined
+            if initial:
+                _initial = initial(self) if callable(initial) else initial
+                self.__state = self.get_state(_initial)
+            elif not self.initial:
+                raise InvalidConfig(
+                    'an initial state must exist for statechart'
+                )
 
     def __process_transient_state(self) -> None:
         for transition in self.state.transitions:
@@ -258,9 +283,7 @@ class StateChart(metaclass=MetaStateChart):
             if _transition.evaluate(self, *args, **kwargs):
                 allowed.append(_transition)
         if len(allowed) == 0:
-            raise GuardNotSatisfied(
-                'Guard is not satisfied for this transition'
-            )
+            raise GuardNotSatisfied('no transition possible from state')
         if len(allowed) > 1:
             raise ForkedTransition(
                 'More than one transition was allowed for this event'

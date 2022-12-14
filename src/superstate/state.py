@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
 from superstate.common import Action
 from superstate.exception import InvalidConfig
 from superstate.transition import transitions
-from superstate.types import NameDescriptor
+from superstate.models import NameDescriptor
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
@@ -19,42 +19,42 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-class MetaState(type):
-    """Instantiate state types from class metadata."""
-
-    _initial: Optional['InitialType']
-    _kind: Optional[str]
-    _states: List['State']
-    _transitions: List['State']
-    _on_entry: Optional['EventActions']
-    _on_exit: Optional['EventActions']
-
-    def __new__(
-        cls,
-        name: str,
-        bases: Tuple[type, ...],
-        attrs: Dict[str, Any],
-    ) -> 'MetaState':
-        _initial = attrs.pop('__initial__', None)
-        _kind = attrs.pop('__kind__', None)
-        _states = attrs.pop('__states__', None)
-        _transitions = attrs.pop('__transitions__', None)
-        _on_entry = attrs.pop('__on_entry__', None)
-        _on_exit = attrs.pop('__on_exit__', None)
-
-        obj = type.__new__(cls, name, bases, attrs)
-        obj._initial = _initial
-        obj._kind = _kind
-        obj._states = _states
-        obj._transitions = _transitions
-        obj._on_entry = _on_entry
-        obj._on_exit = _on_exit
-
-        return obj
+# class MetaState(type):
+#     """Instantiate state types from class metadata."""
+#
+#     _initial: Optional['InitialType']
+#     _kind: Optional[str]
+#     _states: List['State']
+#     _transitions: List['State']
+#     _on_entry: Optional['EventActions']
+#     _on_exit: Optional['EventActions']
+#
+#     def __new__(
+#         cls,
+#         name: str,
+#         bases: Tuple[type, ...],
+#         attrs: Dict[str, Any],
+#     ) -> 'MetaState':
+#         _initial = attrs.pop('__initial__', None)
+#         _kind = attrs.pop('__kind__', None)
+#         _states = attrs.pop('__states__', None)
+#         _transitions = attrs.pop('__transitions__', None)
+#         _on_entry = attrs.pop('__on_entry__', None)
+#         _on_exit = attrs.pop('__on_exit__', None)
+#
+#         obj = type.__new__(cls, name, bases, attrs)
+#         obj._initial = _initial
+#         obj._kind = _kind
+#         obj._states = _states
+#         obj._transitions = _transitions
+#         obj._on_entry = _on_entry
+#         obj._on_exit = _on_exit
+#         print(vars(obj))
+#         return obj
 
 
 # pylint: disable=too-many-instance-attributes
-class State(metaclass=MetaState):
+class State:
     """Manage state representation for statechart."""
 
     __slots__ = [
@@ -84,7 +84,6 @@ class State(metaclass=MetaState):
             raise InvalidConfig('state name contains invalid characters')
         self.__id = name
         self.__kind = kwargs.get('kind')
-        self.__substate = self
 
         self.__substates = {x.name: x for x in kwargs.get('states', [])}
         self.__transitions = kwargs.get('transitions', [])
@@ -92,6 +91,7 @@ class State(metaclass=MetaState):
             self.__register_transition_callback(transition)
 
         self.__initial = kwargs.get('initial')
+        self.__substate = self.__initial if self.__initial else self
         # self.__history = (
         #     kwargs.get('history', 'shallow')
         #     if self.kind == 'history'
@@ -112,6 +112,15 @@ class State(metaclass=MetaState):
         if isinstance(other, str):
             return self.name == other
         return False
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith('__'):
+            raise AttributeError
+
+        for key in self.substates:
+            if key == name:
+                return self.substates[name]
+        raise AttributeError
 
     def __register_transition_callback(self, transition: 'Transition') -> None:
         # XXX: currently mapping to class instead of instance

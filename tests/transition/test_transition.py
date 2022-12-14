@@ -1,3 +1,5 @@
+"""Test transitions."""
+
 import pytest
 
 from superstate import (
@@ -8,6 +10,8 @@ from superstate import (
 
 
 class MyMachine(StateChart):
+    """Provide statechart to verify transitions."""
+
     __superstate__ = state(
         {
             'initial': 'created',
@@ -46,6 +50,15 @@ def test_it_changes_machine_state():
     machine.queue()
     assert machine.state == 'waiting'
     machine.process()
+    assert machine.state == 'processed'
+
+
+def test_it_transitions_machine_state():
+    machine = MyMachine()
+    assert machine.state == 'created'
+    machine.transition('queue')
+    assert machine.state == 'waiting'
+    machine.transition('process')
     assert machine.state == 'processed'
 
 

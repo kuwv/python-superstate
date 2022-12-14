@@ -58,7 +58,17 @@ class Transition:
 
     def run(self, machine: 'StateChart', *args: Any, **kwargs: Any) -> None:
         """Run transition process."""
-        machine.change_state(self.target)
+        # TODO: move change_state to process_transitions
+        if 'statepath' in kwargs:
+            superstate_path = kwargs['statepath'].split('.')[:-1]
+            target = (
+                '.'.join(superstate_path + [self.target])
+                if superstate_path != []
+                else self.target
+            )
+        else:
+            target = self.target
+        machine.change_state(target)
         if self.action:
             Action(machine).run(self.action, *args, **kwargs)
             log.info("executed action event for '{%s}'", self.event)
