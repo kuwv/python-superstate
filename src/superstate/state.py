@@ -1,12 +1,12 @@
 """Provide states for statechart."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Tuple
 
-from superstate.common import Action
-from superstate.exception import InvalidConfig
-from superstate.transition import transitions
-from superstate.models import NameDescriptor
+from superstate.exec import Action
+from superstate.exception import InvalidConfig, InvalidTransition
+
+# from superstate.models import NameDescriptor
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
@@ -53,153 +53,189 @@ log = logging.getLogger(__name__)
 #         return obj
 
 
-# pylint: disable=too-many-instance-attributes
 class State:
-    """Manage state representation for statechart."""
+    """Provide pseudostate base for various pseudostate types."""
 
-    __slots__ = [
-        '__id',
-        '__initial',
-        '__substate',
-        '__substates',
-        '__transitions',
-        '__on_entry',
-        '__on_exit',
-        '__kind',
-        '__dict__',
-    ]
-    __name = cast(str, NameDescriptor('_name'))
-    __initial: Optional['InitialType']
-    # __history: Optional[str]
-    __on_entry: Optional['EventActions']
-    __on_exit: Optional['EventActions']
+    # __slots__ = [
+    #     '_name',
+    #     '__initial',
+    #     '__substate',
+    #     '__substates',
+    #     '__transitions',
+    #     '__on_entry',
+    #     '__on_exit',
+    #     '__kind',
+    # ]
+    # name = cast(str, NameDescriptor('_name'))
+    superstate: Optional['CompositeState']
 
-    def __init__(
-        self,
-        name: str,
-        # *args: Any,
-        **kwargs: Any,
-    ) -> None:
-        if not name.replace('_', '').isalnum():
-            raise InvalidConfig('state name contains invalid characters')
-        self.__id = name
-        self.__kind = kwargs.get('kind')
-
-        self.__substates = {x.name: x for x in kwargs.get('states', [])}
-        self.__transitions = kwargs.get('transitions', [])
-        for transition in self.transitions:
-            self.__register_transition_callback(transition)
-
-        self.__initial = kwargs.get('initial')
-        self.__substate = self.__initial if self.__initial else self
-        # self.__history = (
-        #     kwargs.get('history', 'shallow')
-        #     if self.kind == 'history'
-        #     else None
-        # )
-        # FIXME: pseudostates should not include triggers
-        self.__on_entry = kwargs.get('on_entry')
-        self.__on_exit = kwargs.get('on_exit')
-
-        self.__validate_state()
-
-    def __repr__(self) -> str:
-        return repr(f"State({self.name})")
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, State):
-            return self.name == other.name
-        if isinstance(other, str):
-            return self.name == other
-        return False
-
-    def __getattr__(self, name: str) -> Any:
-        if name.startswith('__'):
-            raise AttributeError
-
-        for key in self.substates:
-            if key == name:
-                return self.substates[name]
-        raise AttributeError
-
-    def __register_transition_callback(self, transition: 'Transition') -> None:
-        # XXX: currently mapping to class instead of instance
-        # TODO: need way to provide auto-transition
-        setattr(
-            self,
-            transition.event if transition.event != '' else '_auto_',
-            transition.callback().__get__(self, self.__class__),
-        )
-
-    def __validate_state(self) -> None:
-        # TODO: empty statemachine should default to null event
-        if self.kind == 'compund':
-            if len(self.__substates) < 2:
-                raise InvalidConfig('There must be at least two states')
-            if not self.initial:
-                raise InvalidConfig('There must exist an initial state')
-        if self.initial and self.kind == 'parallel':
-            raise InvalidConfig(
-                'parallel state should not have an initial state'
-            )
-        if self.kind == 'final' and self.__on_exit:
-            log.warning('final state will never run "on_exit" action')
-        log.info('evaluated state')
-
-    @property
-    def name(self) -> str:
-        """Return name of state."""
-        return self.__id
-
-    @property
-    def initial(self) -> Optional['InitialType']:
-        """Return initial substate if defined."""
-        return self.__initial
-
-    @property
-    def kind(self) -> str:
+    # pylint: disable-next=unused-argument
+    def __new__(cls, *args: Any, **kwargs: Any) -> 'State':
         """Return state type."""
-        if self.__kind:
-            kind = self.__kind
-        elif self.substates != {} and self.transitions:
-            for transition in self.transitions:
-                if transition == '':
-                    kind = 'transient'
-                    break
-            else:
-                kind = 'compound'
-        elif self.substates != {}:
-            if not self.initial:
+        kind = kwargs.get('kind')
+        states = kwargs.get('states')
+        transitions = kwargs.get('transitions')
+        if states and transitions:
+            # for transition in self.transitions:
+            #     if transition == '':
+            #         kind = 'transient'
+            #         break
+            # else:
+            kind = 'compound'
+        elif states:
+            if 'initial' not in kwargs:
                 kind = 'parallel'
             kind = 'compound'
+        # elif _transitions:
+        #     kind = 'conditional'
         else:
-            # XXX: can auto to final - if self.transitions != []: else 'final'
             kind = 'atomic'
-        return kind
 
-    # @property
-    # def history(self) -> Optional[str]:
-    #     """Return previous substate."""
-    #     return self.__history
+        for subclass in cls.lookup_subclasses(cls):
+            if subclass.__name__.lower().startswith(kind):
+                return super().__new__(subclass)
+        return super().__new__(cls)
+
+    def __init__(
+        self,  # pylint: disable=unused-argument
+        name: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        self.__name = name
+        self.__kind = kwargs.get('kind', 'atomic')
+
+    @classmethod
+    def lookup_subclasses(cls, obj: Type['State']):
+        """Get all subsclasses."""
+        return set(obj.__subclasses__()).union(
+            [s for c in obj.__subclasses__() for s in cls.lookup_subclasses(c)]
+        )
 
     @property
-    def substate(self) -> 'State':
-        """Current substate of this state."""
-        return self.__substate
+    def name(self) -> 'str':
+        """Get name of state."""
+        return self.__name
 
     @property
-    def substates(self) -> Dict[str, 'State']:
-        """Return substates."""
-        return self.__substates
+    def kind(self) -> 'str':
+        """Get state type."""
+        return self.__kind
+
+    def __repr__(self) -> str:
+        return repr(f"{self.__class__.__name__}({self.name})")
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.__name == other.name
+        if isinstance(other, str):
+            return self.__name == other
+        return False
+
+    def run_on_entry(self, machine: 'StateChart') -> None:
+        """Run on-entry tasks."""
+        raise NotImplementedError
+
+    def run_on_exit(self, machine: 'StateChart') -> None:
+        """Run on-exit tasks."""
+        raise NotImplementedError
+
+
+class PseudoState(State):
+    """Provide state for statechart."""
+
+    def run_on_entry(self, machine: 'StateChart') -> None:
+        """Run on-entry tasks."""
+        raise InvalidTransition('cannot transition to pseudostate')
+
+    def run_on_exit(self, machine: 'StateChart') -> None:
+        """Run on-exit tasks."""
+        raise InvalidTransition('cannot transition from pseudostate')
+
+
+class ConditionState(PseudoState):
+    """A pseudostate that only transits to other states."""
+
+    __transitions: List['Transition']
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        """Initialize atomic state."""
+        self.__transitions = kwargs.pop('transitions', [])
+        super().__init__(name, *args, **kwargs)
 
     @property
     def transitions(self) -> Tuple['Transition', ...]:
         """Return transitions of this state."""
         return tuple(self.__transitions)
 
-    def add_state(self, st: 'State') -> None:
-        """Add substate to this state."""
-        self.__substates[st.name] = st
+    def add_transition(self, transition: 'Transition') -> None:
+        """Add transition to this state."""
+        self.__transitions.append(transition)
+
+
+class HistoryState(PseudoState):
+    """A pseudostate that remembers transition history of compound states."""
+
+    __history: str
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        self.__history = kwargs.get('history', 'shallow')
+        super().__init__(name, *args, **kwargs)
+
+    @property
+    def history(self) -> str:
+        """Return previous substate."""
+        return self.__history
+
+
+class FinalState(State):
+    """Provide final state for a statechart."""
+
+    __on_entry: Optional['EventActions']
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        super().__init__(name, *args, **kwargs)
+        self.__on_entry = kwargs.get('on_entry')
+
+    def run_on_entry(self, machine: 'StateChart') -> None:
+        if self.__on_entry is not None:
+            Action(machine).run(self.__on_entry)
+            log.info(
+                "executed 'on_entry' state change action for %s", self.name
+            )
+
+    def run_on_exit(self, machine: 'StateChart') -> None:
+        raise InvalidTransition('final state cannot transition once entered')
+
+
+class AtomicState(State):
+    """Provide an atomic state for a statechart."""
+
+    __transitions: List['Transition']
+    __on_entry: Optional['EventActions']
+    __on_exit: Optional['EventActions']
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        """Initialize atomic state."""
+        self.__transitions = kwargs.pop('transitions', [])
+        for transition in self.transitions:
+            self.__register_transition_callback(transition)
+        self.__on_entry = kwargs.pop('on_entry', None)
+        self.__on_exit = kwargs.pop('on_exit', None)
+        super().__init__(name, *args, **kwargs)
+
+    def __register_transition_callback(self, transition: 'Transition') -> None:
+        # XXX: currently mapping to class instead of instance
+        setattr(
+            self,
+            transition.event if transition.event != '' else '_auto_',
+            transition.callback().__get__(self, self.__class__),
+        )
+
+    @property
+    def transitions(self) -> Tuple['Transition', ...]:
+        """Return transitions of this state."""
+        return tuple(self.__transitions)
 
     def add_transition(self, transition: 'Transition') -> None:
         """Add transition to this state."""
@@ -214,47 +250,179 @@ class State:
             )
         )
 
+    def __process_transient_state(self, machine: 'StateChart') -> None:
+        for transition in self.transitions:
+            if transition.event == '':
+                # pylint: disable-next=protected-access
+                machine._auto_()
+                break
+
     def run_on_entry(self, machine: 'StateChart') -> None:
-        """Run actions on state entry."""
-        if self.__on_entry is not None and self.kind != 'history':
+        self.__process_transient_state(machine)
+        if self.__on_entry is not None:
             Action(machine).run(self.__on_entry)
             log.info(
                 "executed 'on_entry' state change action for %s", self.name
             )
 
     def run_on_exit(self, machine: 'StateChart') -> None:
-        """Run actions on state exit."""
-        if self.__on_exit is not None and self.kind != 'history':
+        if self.__on_exit is not None:
             Action(machine).run(self.__on_exit)
             log.info(
                 "executed 'on_exit' state change action for %s", self.name
             )
 
 
-def state(config: Union['State', dict, str]) -> 'State':
-    """Create state from configuration."""
-    if isinstance(config, State):
-        return config
-    if isinstance(config, str):
-        return State(config)
-    if isinstance(config, dict):
-        cls = config.get('factory', State)
-        return cls(
-            name=config.get('name', 'superstate'),
-            initial=config.get('initial'),
-            kind=config.get('kind'),
-            states=(states(*config['states']) if 'states' in config else []),
-            transitions=(
-                transitions(*config['transitions'])
-                if 'transitions' in config
-                else []
-            ),
-            on_entry=config.get('on_entry'),
-            on_exit=config.get('on_exit'),
-        )
-    raise InvalidConfig('could not find a valid state configuration')
+class CompositeState(AtomicState):
+    """Provide composite abstract to define nested state types."""
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith('__'):
+            raise AttributeError
+
+        for key in self.substates:
+            if key == name:
+                return self.substates[name]
+        raise AttributeError
+
+    @property
+    def substates(self) -> Dict[str, 'State']:
+        """Return substates."""
+        raise NotImplementedError
+
+    def add_state(self, state: 'State') -> None:
+        """Add substate to this state."""
+        raise NotImplementedError
+
+    def is_current_state(self, name: str) -> bool:
+        """Check current active state by name."""
+        raise NotImplementedError
+
+    def get_state(self, name: str) -> Optional['State']:
+        """Get state by name."""
+        return self.substates.get(name)
 
 
-def states(*args: Any) -> List['State']:
-    """Create states from configuration."""
-    return list(map(state, args))
+class ParallelState(CompositeState):
+    """Provide parallel state capability for statechart."""
+
+    __substates: Dict[str, 'State']
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        """Initialize compound state."""
+        for x in kwargs.pop('states', []):
+            x.superstate = self
+            self.__substates[x.name] = x
+        super().__init__(name, *args, **kwargs)
+
+    @property
+    def substates(self) -> Dict[str, 'State']:
+        """Return substates."""
+        return self.__substates
+
+    def add_state(self, state: 'State') -> None:
+        """Add substate to this state."""
+        state.superstate = self
+        self.__substates[state.name] = state
+
+    def is_current_state(self, name: str) -> bool:
+        for state in self.__substates:
+            if state == name[3:]:
+                return True
+        return False
+
+    def run_on_entry(self, machine: 'StateChart') -> None:
+        super().run_on_entry(machine)
+        for substate in reversed(self.__substates.values()):
+            substate.run_on_entry(machine)
+
+    def run_on_exit(self, machine: 'StateChart') -> None:
+        for substate in reversed(self.__substates.values()):
+            substate.run_on_exit(machine)
+        super().run_on_exit(machine)
+
+    # def validate(self) -> None:
+    #     # TODO: empty statemachine should default to null event
+    #     if self.kind == 'compund':
+    #         if len(self.__substates) < 2:
+    #             raise InvalidConfig('There must be at least two states')
+    #         if not self.initial:
+    #             raise InvalidConfig('There must exist an initial state')
+    #     if self.initial and self.kind == 'parallel':
+    #         raise InvalidConfig(
+    #             'parallel state should not have an initial state'
+    #         )
+    #     if self.kind == 'final' and self.__on_exit:
+    #         log.warning('final state will never run "on_exit" action')
+    #     log.info('evaluated state')
+
+
+class CompoundState(CompositeState):
+    """Provide nested state capabilitiy."""
+
+    initial: 'InitialType'
+    __substate: 'State'
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        self.__substate = self
+        self.__substates = {}
+        for x in kwargs.pop('states', []):
+            x.superstate = self
+            self.__substates[x.name] = x
+        self.initial = kwargs.pop('initial')
+        super().__init__(name, *args, **kwargs)
+
+    @property
+    def substate(self) -> 'State':
+        """Current substate of this state."""
+        return self.__substate
+
+    def change_state(self, name: str, machine: 'StateChart') -> None:
+        """Current substate of this state."""
+        log.info("running on-exit tasks for state '%s'", name)
+        self.__substate.run_on_exit(machine)
+        self.__substate = self.__substates[name]
+        log.info('state is now: %s', name)
+        log.info("running on-entry tasks for state: '%s'", name)
+        self.__substate.run_on_entry(machine)
+
+    @property
+    def substates(self) -> Dict[str, 'State']:
+        """Return substates."""
+        return self.__substates
+
+    def is_current_state(self, name: str) -> bool:
+        return self.__substate.name == name[3:]
+
+    def add_state(self, state: 'State') -> None:
+        """Add substate to this state."""
+        state.superstate = self
+        self.__substates[state.name] = state
+
+    def run_on_entry(self, machine: 'StateChart') -> None:
+        super().run_on_entry(machine)
+        # if next(
+        #     (x for x in self.substates if isinstance(x, HistoryState)), False
+        # ):
+        #     ...
+        if self.initial:
+            self.__substate = (
+                self.get_state(
+                    self.initial(self)
+                    if callable(self.initial)
+                    else self.initial
+                )
+                or self
+            )
+        else:
+            raise InvalidConfig('an initial state must exist for statechart')
+
+    # def run_on_exit(self, machine: 'StateChart') -> None:
+    #     super().run_on_exit(machine)
+
+    def validate(self) -> None:
+        """Validate state to ensure conformance with type requirements."""
+        if len(self.__substates) < 2:
+            raise InvalidConfig('There must be at least two states')
+        if not self.initial:
+            raise InvalidConfig('There must exist an initial state')

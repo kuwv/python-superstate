@@ -1,6 +1,6 @@
-# import pytest
+import pytest
 
-from superstate import StateChart, state
+from superstate import InvalidTransition, StateChart, state
 
 
 class Machine(StateChart):
@@ -12,11 +12,11 @@ class Machine(StateChart):
                 {
                     'name': 'started',
                     'transitions': [
-                        # {'event': 'restart', 'target': 'started'},
+                        {'event': 'restart', 'target': 'started'},
                         {'event': 'stop', 'target': 'stopped'},
                     ],
                 },
-                {'name': 'stopped'},
+                {'name': 'stopped', 'kind': 'final'},
             ],
             'transitions': [
                 {
@@ -36,13 +36,13 @@ def test_auto_transition():
     assert machine.state == 'started'
 
 
-# def test_self_transition():
-#     machine.restart()
-#     assert machine.state == 'started'
+def test_self_transition():
+    machine.restart()
+    assert machine.state == 'started'
 
 
-# def test_final_transition():
-#     machine.stop()
-#     assert machine.state.kind == 'final'
-#     with pytest.raises(InvalidTransition):
-#         machine.transition('started')
+def test_final_transition():
+    machine.stop()
+    assert machine.state.kind == 'final'
+    with pytest.raises(InvalidTransition):
+        machine.transition('started')

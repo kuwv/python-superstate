@@ -18,6 +18,10 @@ def tuplize(value: Any) -> Tuple[Any, ...]:
     return tuple(value) if type(value) in (list, tuple) else (value,)
 
 
+class Activity:
+    """Long running action."""
+
+
 class Action:
     """Provide executable action from transition."""
 

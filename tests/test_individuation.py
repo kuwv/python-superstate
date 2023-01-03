@@ -1,11 +1,11 @@
 """Superstate object (individuation)"""
 
-# import pytest
-
 from superstate import StateChart, State, Transition, state
 
 
 class Door(StateChart):
+    """Provide door example for testing."""
+
     __superstate__ = state(
         {
             'initial': 'closed',
@@ -28,20 +28,23 @@ door.add_transition(
 
 
 def test_it_responds_to_an_event():
+    """Test door responds to an event."""
     assert hasattr(door.state, 'crack')
 
 
 def test_event_changes_state_when_called():
+    """Test event changes state when called."""
     door.crack()
     assert door.state == 'broken'
 
 
 def test_it_informs_all_its_states():
+    """Test machine informs all states."""
     assert len(door.states) == 3
     assert door.states == ('closed', 'opened', 'broken')
 
 
-# XXX: this has been converted to __getattr__ instead
-# def test_individuation_does_not_affect_other_instances():
-#     another_door = Door()
-#     assert not hasattr(another_door.state, 'crack')
+def test_individuation_does_not_affect_other_instances():
+    """Test individuation does not affect other instances."""
+    another_door = Door()
+    assert not hasattr(another_door.state, 'crack')

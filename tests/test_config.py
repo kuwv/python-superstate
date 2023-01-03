@@ -8,9 +8,9 @@ from superstate import (
 )
 
 
-def test_it_requires_at_least_two_states():
+def test_it_requires_minimal_two_states():
     class MyMachine(StateChart):
-        pass
+        """Machine to validate config."""
 
     # There must be at least two states
     with pytest.raises(InvalidConfig):
@@ -26,9 +26,7 @@ def test_it_requires_at_least_two_states():
 
 def test_it_requires_an_initial():
     class MyMachine(StateChart):
-        __superstate__ = state(
-            {'states': [State('open'), State('closed')]}
-        )
+        __superstate__ = state({'states': [State('open'), State('closed')]})
 
     # There must be at least two states
     with pytest.raises(InvalidConfig):

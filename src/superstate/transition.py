@@ -1,10 +1,9 @@
 """Provide superstate transition capabilities."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from superstate.common import Action, Guard
-from superstate.exception import InvalidConfig
+from superstate.exec import Action, Guard
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
@@ -74,22 +73,3 @@ class Transition:
             log.info("executed action event for '{%s}'", self.event)
         else:
             log.info("no action event for '%s'", self.event)
-
-
-def transition(config: Union['Transition', dict]) -> 'Transition':
-    """Create transition from configuration."""
-    if isinstance(config, Transition):
-        return config
-    if isinstance(config, dict):
-        return Transition(
-            event=config['event'],
-            target=config['target'],
-            action=config.get('action'),
-            cond=config.get('cond'),
-        )
-    raise InvalidConfig('could not find a valid transition configuration')
-
-
-def transitions(*args: Any) -> List['Transition']:
-    """Create transitions from configuration."""
-    return list(map(transition, args))
