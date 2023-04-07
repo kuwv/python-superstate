@@ -34,7 +34,7 @@ def test_it_responds_to_an_event():
 
 def test_event_changes_state_when_called():
     """Test event changes state when called."""
-    door.crack()
+    door.trigger('crack')
     assert door.state == 'broken'
 
 

@@ -27,7 +27,7 @@ class Door(StateChart):
 
     def __init__(self):
         self.state_changes = []
-        super(Door, self).__init__()
+        super().__init__()
 
     def state_trigger(self, source, target):
         self.state_changes.append((source, target))

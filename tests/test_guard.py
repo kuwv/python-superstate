@@ -37,14 +37,14 @@ class FallingMachine(StateChart):
 
 def test_it_allows_transition_if_satisfied():
     machine = FallingMachine()
-    machine.jump()
+    machine.trigger('jump')
     assert machine.state == 'falling'
 
 
 def test_it_forbids_transition_if_not_satisfied():
     machine = FallingMachine(ready=False)
     with pytest.raises(GuardNotSatisfied):
-        machine.jump()
+        machine.trigger('jump')
 
 
 def test_it_may_be_an_attribute():
@@ -52,11 +52,11 @@ def test_it_may_be_an_attribute():
     machine = FallingMachine()
     machine.ready_to_fly = False
     with pytest.raises(GuardNotSatisfied):
-        machine.jump()
+        machine.trigger('jump')
 
     machine.ready_to_fly = False
     with pytest.raises(Exception):
-        machine.jump()
+        machine.trigger('jump')
     assert machine.state != 'falling'
 
 
@@ -64,16 +64,16 @@ def test_it_allows_transition_only_if_all_are_satisfied():
     machine = FallingMachine()
     machine.ready_to_fly = True
     machine.high_enough_flag = True
-    machine.jump()
+    machine.trigger('jump')
 
     machine = FallingMachine()
     machine.ready_to_fly = False
     machine.high_enough_flag = True
     with pytest.raises(GuardNotSatisfied):
-        machine.jump()
+        machine.trigger('jump')
 
     machine = FallingMachine()
     machine.ready_to_fly = True
     machine.high_enough_flag = False
     with pytest.raises(GuardNotSatisfied):
-        machine.jump()
+        machine.trigger('jump')

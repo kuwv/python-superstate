@@ -7,14 +7,14 @@ footsteps = []
 
 class Foo:
     def bar(self):
-        footsteps.append('on_exit looking')
+        footsteps.append('looking:on_exit')
 
 
 foo = Foo()
 
 
 def pre_falling_function():
-    footsteps.append('pre falling')
+    footsteps.append('falling:on_entry')
 
 
 class JumperGuy(StateChart):
@@ -29,15 +29,17 @@ class JumperGuy(StateChart):
                             'event': 'jump',
                             'target': 'falling',
                             'action': (
-                                lambda jumper: jumper.append('action jump')
+                                lambda jumper: jumper.append('looking:action')
                             ),
                             'cond': (
-                                lambda jumper: jumper.append('guard jump')
+                                lambda jumper: jumper.append('looking:cond')
                                 is None
                             ),
                         }
                     ],
-                    'on_entry': lambda jumper: jumper.append('pre looking'),
+                    'on_entry': (
+                        lambda jumper: jumper.append('looking:on_entry')
+                    ),
                     'on_exit': foo.bar,
                 },
                 {'name': 'falling', 'on_entry': pre_falling_function},
@@ -45,25 +47,26 @@ class JumperGuy(StateChart):
         }
     )
 
-    def __init__(self):
-        super().__init__()
-
-    def append(self, text):
+    @staticmethod
+    def append(text):
         footsteps.append(text)
 
 
 def test_every_callback_is_callable():
     """every callback can be a callable"""
     guy = JumperGuy()
-    guy.jump()
+    assert guy.state == 'looking'
+    guy.trigger('jump')
+    assert guy.state == 'falling'
+    print(footsteps)
     assert len(footsteps) == 5
     assert sorted(footsteps) == sorted(
         [
-            'pre looking',
-            'on_exit looking',
-            'pre falling',
-            'action jump',
-            'guard jump',
+            'looking:cond',
+            'looking:on_entry',
+            'looking:action',
+            'looking:on_exit',
+            'falling:on_entry',
         ]
     )
 

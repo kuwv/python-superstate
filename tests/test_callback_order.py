@@ -48,7 +48,7 @@ class CrazyGuy(StateChart):
 @pytest.fixture
 def setup_guy():
     guy = CrazyGuy()
-    guy.jump()
+    guy.trigger('jump')
     return guy
 
 

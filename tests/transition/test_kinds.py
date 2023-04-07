@@ -31,18 +31,18 @@ class Machine(StateChart):
 machine = Machine()
 
 
-def test_auto_transition():
-    assert machine.initial == 'engine'
+def test_auto_trigger():
+    assert machine.superstate.initial == 'engine'
     assert machine.state == 'started'
 
 
-def test_self_transition():
-    machine.restart()
+def test_self_trigger():
+    machine.trigger('restart')
     assert machine.state == 'started'
 
 
-def test_final_transition():
-    machine.stop()
+def test_final_trigger():
+    machine.trigger('stop')
     assert machine.state.kind == 'final'
     with pytest.raises(InvalidTransition):
-        machine.transition('started')
+        machine.trigger('sabotage')

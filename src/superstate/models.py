@@ -8,15 +8,15 @@ from superstate.exception import InvalidConfig
 class NameDescriptor:
     """Validate state naming."""
 
-    __slots__ = ['__name']
+    __slots__ = ['name']
 
-    def __init__(self, name: str) -> None:
-        self.__name = name
+    def __set_name__(self, owner: object, name: str) -> None:
+        self.name = name  # pylint: disable=attribute-defined-outside-init
 
-    def __get__(self, key: str, objtype: Optional[str] = None) -> str:
-        return getattr(key, self.__name)
+    def __get__(self, obj: object, objtype: Optional[str] = None) -> str:
+        return getattr(obj, self.name)
 
-    def __set__(self, key: str, value: str) -> None:
+    def __set__(self, obj: object, value: str) -> None:
         if not value.replace('_', '').isalnum():
             raise InvalidConfig('state name contains invalid characters')
-        setattr(key, self.__name, value)
+        setattr(obj, self.name, value)

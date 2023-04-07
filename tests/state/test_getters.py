@@ -23,7 +23,7 @@ def test_it_has_boolean_getters_for_the_states():
     assert guy.state == 'looking'
     assert guy.state != 'falling'
 
-    guy.jump()
+    guy.trigger('jump')
     assert guy.state != 'looking'
     assert guy.state == 'falling'
 
@@ -37,6 +37,6 @@ def test_it_has_boolean_getters_for_individual_states():
     guy.add_transition(
         Transition(event='land', target='squashed'), statepath='falling'
     )
-    guy.jump()
-    guy.land()
+    guy.trigger('jump')
+    guy.trigger('land')
     assert guy.state == 'squashed'

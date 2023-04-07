@@ -3,7 +3,8 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from superstate.exec import Action, Guard
+# from superstate.models import NameDescriptor
+from superstate.trigger import Action, Guard
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
@@ -15,7 +16,7 @@ log = logging.getLogger(__name__)
 class Transition:
     """Represent statechart transition."""
 
-    __slots__ = ['event', 'target', 'action', 'cond']
+    # __slots__ = ['event', 'target', 'action', 'cond']
     # event = cast(str, NameDescriptor())
     # target = cast(str, NameDescriptor())
 
@@ -55,7 +56,9 @@ class Transition:
             else True
         )
 
-    def run(self, machine: 'StateChart', *args: Any, **kwargs: Any) -> None:
+    def run(
+        self, machine: 'StateChart', *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
         """Run transition process."""
         # TODO: move change_state to process_transitions
         if 'statepath' in kwargs:
@@ -69,7 +72,8 @@ class Transition:
             target = self.target
         machine.change_state(target)
         if self.action:
-            Action(machine).run(self.action, *args, **kwargs)
-            log.info("executed action event for '{%s}'", self.event)
-        else:
-            log.info("no action event for '%s'", self.event)
+            print('-----', self.action)
+            log.info("executed action event for %r", self.event)
+            return Action(machine).run(self.action, *args, **kwargs)
+        log.info("no action event for %r", self.event)
+        return None

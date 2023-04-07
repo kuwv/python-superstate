@@ -31,7 +31,17 @@ from superstate.exception import (
     GuardNotSatisfied,
 )
 from superstate.machine import StateChart
-from superstate.state import CompositeState, State
+from superstate.state import (
+    AtomicState,
+    CompositeState,
+    CompoundState,
+    ConditionState,
+    FinalState,
+    # HistoryState,
+    State,
+    ParallelState,
+    PseudoState,
+)
 from superstate.transition import Transition
 
 __author__ = 'Jesse P. Johnson'
@@ -43,6 +53,23 @@ __license__ = 'MIT'
 __copyright__ = 'Copyright 2022 Jesse Johnson.'
 __all__ = (
     'StateChart',
+    # states
+    'AtomicState',
+    'CompositeState',
+    'CompoundState',
+    'ConditionState',
+    'FinalState',
+    # 'HistoryState',
+    'State',
+    'ParallelState',
+    'PseudoState',
+    # exceptions
+    'InvalidConfig',
+    'InvalidState',
+    'InvalidTransition',
+    'ForkedTransition',
+    'GuardNotSatisfied',
+    # helper functions
     'states',
     'state',
     'transitions',
@@ -80,7 +107,7 @@ def state(
         return config
     if isinstance(config, str):
         # pylint: disable-next=abstract-class-instantiated
-        return State(config)  # type: ignore
+        return State(config)
     if isinstance(config, dict):
         cls = config.pop('factory', State)
         return cls(
@@ -99,7 +126,6 @@ def state(
     raise InvalidConfig('could not find a valid state configuration')
 
 
-# def states(*args: Any) -> List['State']:
 def states(*args: Any) -> List['State']:
     """Create states from configuration."""
     return list(map(state, args))

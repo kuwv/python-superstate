@@ -22,7 +22,7 @@ class ActionMachine(StateChart):
 
     def __init__(self):
         self.pre_create = False
-        super(ActionMachine, self).__init__()
+        super().__init__()
         self.is_pre_aware = False
         self.is_on_exit_aware = False
         self.pre_wait_aware = False
@@ -56,14 +56,14 @@ class ActionMachine(StateChart):
 def test_it_runs_pre_action_pre_machine_pres_a_given_state():
     machine = ActionMachine()
     assert machine.is_pre_aware is False
-    machine.queue()
+    machine.trigger('queue')
     assert machine.is_pre_aware is True
 
 
 def test_it_runs_on_exit_action_on_exit_machine_on_exits_a_given_state():
     machine = ActionMachine()
     assert machine.is_on_exit_aware is False
-    machine.queue()
+    machine.trigger('queue')
     assert machine.is_pre_aware is True
 
 
@@ -85,7 +85,7 @@ def test_it_runs_on_exit_action_pre_pre_action():
     machine.pre_wait_expectation = pre_wait_expectation.__get__(
         machine, ActionMachine
     )
-    machine.queue()
+    machine.trigger('queue')
 
 
 def test_it_runs_pre_action_for_initial_at_creation():
@@ -96,7 +96,7 @@ def test_it_accepts_many_pre_actions():
     machine = ActionMachine()
     assert machine.pre_wait_aware is False
     assert machine.other_pre_wait_aware is False
-    machine.queue()
+    machine.trigger('queue')
     assert machine.pre_wait_aware is True
     assert machine.other_pre_wait_aware is True
 
@@ -105,6 +105,6 @@ def test_it_accepts_on_exit_actions():
     machine = ActionMachine()
     assert machine.on_exit_create_aware is False
     assert machine.other_on_exit_create_aware is False
-    machine.queue()
+    machine.trigger('queue')
     assert machine.on_exit_create_aware is True
     assert machine.other_on_exit_create_aware is True

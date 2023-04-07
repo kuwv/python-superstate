@@ -51,20 +51,20 @@ class LoanRequest(StateChart):
 
 def test_it_selects_the_transition_having_a_passing_guard():
     request = LoanRequest()
-    request.analyze()
-    request.forward_analysis_result()
-    request.state == 'accepted'
+    request.trigger('analyze')
+    request.trigger('forward_analysis_result')
+    assert request.state == 'accepted'
 
     request = LoanRequest()
-    request.analyze(accepted=False)
-    request.forward_analysis_result()
-    request.state == 'refused'
+    request.trigger('analyze', accepted=False)
+    request.trigger('forward_analysis_result')
+    assert request.state == 'refused'
 
 
 def test_it_raises_error_if_more_than_one_guard_passes():
     request = LoanRequest()
-    request.analyze()
+    request.trigger('analyze')
     request.truify = True
     # More than one transition was allowed for this event
     with pytest.raises(ForkedTransition):
-        request.forward_analysis_result()
+        request.trigger('forward_analysis_result')

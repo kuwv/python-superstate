@@ -41,7 +41,7 @@ class Door(StateChart):
 
 def test_it_pass_parameters_received_by_event_to_action():
     door = Door()
-    door.open('now!', 'there!')
+    door.trigger('open', 'now!', 'there!')
     assert hasattr(door, 'when')
     assert door.when == 'now!'
     assert hasattr(door, 'where')
@@ -50,8 +50,8 @@ def test_it_pass_parameters_received_by_event_to_action():
 
 def test_it_pass_args_and_kwargs_to_action():
     door = Door()
-    door.open('anytime', 'anywhere')
-    door.close('1', 2, object, test=9, it=8, works=7)
+    door.trigger('open', 'anytime', 'anywhere')
+    door.trigger('close', '1', 2, object, test=9, it=8, works=7)
     assert hasattr(door, 'args')
     assert door.args == ('1', 2, object)
     assert hasattr(door, 'kwargs')

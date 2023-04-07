@@ -38,10 +38,10 @@ class Action:
     ) -> Tuple[Any, ...]:
         """Run action when transaction is processed."""
         return tuple(
-            self._run_action(x, *args, **kwargs) for x in tuplize(params)
+            self.__run_action(x, *args, **kwargs) for x in tuplize(params)
         )
 
-    def _run_action(
+    def __run_action(
         self, action: 'EventAction', *args: Any, **kwargs: Any
     ) -> Any:
         if callable(action):
@@ -95,7 +95,6 @@ class Guard:
     ) -> bool:
         signature = inspect.signature(cond)
         params = dict(signature.parameters)
-
         if len(params.keys()) != 0:
             return cond(*args, **kwargs)
         return cond()

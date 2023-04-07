@@ -2,7 +2,7 @@
 
 import logging
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from superstate.exception import (
     InvalidConfig,
@@ -15,7 +15,7 @@ from superstate.state import (
     AtomicState,
     CompositeState,
     CompoundState,
-    # ParallelState,
+    ParallelState,
 )
 
 if TYPE_CHECKING:
@@ -48,9 +48,8 @@ class MetaStateChart(type):
 class StateChart(metaclass=MetaStateChart):
     """Represent statechart capabilities."""
 
-    # __slots__ = ['__states', '__dict__']
+    # __slots__ = ['__root', '__state', '__superstate', '__dict__', 'initial']
     __root: 'CompositeState'
-    __state: 'State'
     __superstate: 'CompositeState'
 
     def __init__(
@@ -70,71 +69,78 @@ class StateChart(metaclass=MetaStateChart):
         log.info('initializing statechart')
 
         if hasattr(self.__class__, '_root'):
-            superstate = deepcopy(self.__class__._root)
+            self.__root = deepcopy(self.__class__._root)
         elif 'superstate' in kwargs:
-            superstate = deepcopy(kwargs['superstate'])
+            self.__root = deepcopy(kwargs['superstate'])
         else:
             raise InvalidConfig(
                 'attempted initialization with empty superstate'
             )
-        self.__state = self.__root = superstate
-
-        self.initial = kwargs.get('initial', self.__root.initial)
-        if self.initial:
-            self.__state = self.get_state(
-                self.initial(self) if callable(self.initial) else self.initial
-            )
+        self.__superstate = self.__root
+        # TODO: need to traverse initial or handle callable
+        self.__superstate.initial = kwargs.get(
+            'initial',
+            self.__root.initial if hasattr(self.__root, 'initial') else None,
+        )
         log.info('loaded states and transitions')
 
         if kwargs.get('enable_start_transition', True):
+            self.superstate.run_on_entry(self)
             self.state.run_on_entry(self)
         log.info('statechart initialization complete')
 
     def __getattr__(self, name: str) -> Any:
+        # do not attempt to resolve missing dunders
         if name.startswith('__'):
             raise AttributeError
 
+        # handle state check locally
         if name.startswith('is_'):
-            return self.superstate.is_current_state(name)
+            return self.superstate.is_active(name[3:])
 
+        # handle automatic transitions
+        if name == '_auto_':
+            def wrapper(*args: Any, **kwargs: Any) -> None:
+                return self.trigger('', *args, **kwargs)
+            return wrapper
+
+        # directly transition by event name
+        # if name.startswith('to_'):
         for transition in self.transitions:
-            if transition.event == name or (
-                transition.event == '' and name == '_auto_'
-            ):
-                return transition.callback().__get__(self, self.__class__)
+            if transition.event in ('_auto_', name):
+                # def wrapper(*args: Any, **kwargs: Any) -> None:
+                #     return (getattr(self, 'get_transition')).run(
+                #         name, *args, **kwargs
+                #     )
+                #
+                # return wrapper
 
+                # if transition.evaluate(self, *args, **kwargs):
+                #     result = transition.callback().__get__(
+                #         self, self.__class__
+                #     )
+                # else:
+                result = self.trigger(name)
+                return result
+
+        # retrieve substate by name
         for key in list(self.states):
             if key == name:
                 return self.superstate.substates[name]
         raise AttributeError
 
     @property
-    def transitions(self) -> Tuple['Transition', ...]:
-        """Return list of current transitions."""
-        return (
-            tuple(self.state.transitions)
-            if hasattr(self.state, 'transitions')
-            else ()
-        )
-        # return tuple(
-        #     self.state.transitions + self.superstate.transitions
-        #     if self.state != self.superstate
-        #     and hasattr(self.state, 'transitions')
-        #     else self.superstate.transitions
-        # )
-
-    @property
     def superstate(self) -> 'CompositeState':
         """Return superstate."""
-        return self.__state.superstate or self.__root
+        return self.__superstate
 
     @property
     def state(self) -> 'State':
         """Return the current state."""
         try:
-            return self.__state
+            return self.superstate.substate
         except Exception as err:
-            log.error('state is undefined')
+            log.error(err)
             raise KeyError('state is undefined') from err
 
     @property
@@ -142,27 +148,48 @@ class StateChart(metaclass=MetaStateChart):
         """Return list of states."""
         return tuple(self.superstate.substates.values())
 
+    def change_state(
+        self,
+        statepath: str,
+        skip_triggers: bool = False,
+        skip_on_entry: bool = False,
+        skip_on_exit: bool = False,
+    ) -> None:
+        """Change current state to target state."""
+        log.info('changing state from %s', statepath)
+        if not skip_triggers or not skip_on_exit:
+            self.state.run_on_exit(self)
+        state = self.get_state(statepath)
+        if self.superstate != state.superstate:
+            self.__superstate = state.superstate
+        self.__superstate.substate = state.name
+        if not skip_triggers or not skip_on_entry:
+            self.state.run_on_entry(self)
+        log.info('changed state to %s', statepath)
+
     def get_state(self, statepath: str) -> 'State':
         """Get state from query path."""
-        log.info("lookup state at path '%s'", statepath)
+        log.info('lookup state at path %r', statepath)
         subpaths = statepath.split('.')
-        current = self.state if statepath.startswith('.') else self.__root
+
+        current: 'State' = self.__root
+        if statepath.startswith('..'):
+            current = self.superstate
+            for p in subpaths:
+                if p == '':
+                    current = current.superstate  # type: ignore
+                else:
+                    break
+        elif statepath.startswith('.'):
+            current = self.state
+
         for i, state in enumerate(subpaths):
-            # if current != state:
             if current != state and isinstance(current, CompoundState):
                 current = current.substates[state]
             if i == (len(subpaths) - 1):
-                log.info("found state %s", current)
+                log.info('found state %s', current)
                 return current
         raise InvalidState(f"state could not be found: {statepath}")
-
-    def change_state(self, statepath: str) -> None:
-        """Change current state to target state."""
-        log.info('changing state from %s', statepath)
-        self.state.run_on_exit(self)
-        self.__state = self.get_state(statepath)
-        self.state.run_on_entry(self)
-        log.info('changed state to %s', statepath)
 
     def add_state(
         self, state: 'State', statepath: Optional[str] = None
@@ -174,6 +201,25 @@ class StateChart(metaclass=MetaStateChart):
         if isinstance(superstate, CompositeState):
             superstate.add_state(state)
             log.info('added state %s', state.name)
+        else:
+            raise InvalidState(
+                f"cannot add state to non-composite state {superstate.name}"
+            )
+
+    @property
+    def transitions(self) -> Tuple['Transition', ...]:
+        """Return list of current transitions."""
+        # return tuple(
+        #     self.state.transitions + self.superstate.transitions
+        #     if self.state != self.superstate
+        #     and hasattr(self.state, 'transitions')
+        #     else self.superstate.transitions
+        # )
+        return (
+            tuple(self.state.transitions)
+            if hasattr(self.state, 'transitions')
+            else ()
+        )
 
     def add_transition(
         self, transition: 'Transition', statepath: Optional[str] = None
@@ -186,46 +232,54 @@ class StateChart(metaclass=MetaStateChart):
         else:
             raise InvalidState('cannot add transition to %s', target)
 
-    def transition(self, event: str, *args, **kwargs: Any) -> Any:
-        """Transition from event to target state."""
-        statepath = kwargs.get('statepath')
-        state = self.get_state(statepath) if statepath else self.state
-        if hasattr(state, 'transitions'):
-            for transition in state.transitions:
-                if transition.event == event:
-                    log.info("transitioning to '%s'", event)
-                    return transition.callback()(self, *args, **kwargs)
-        raise InvalidTransition("transition '%s' not found", event)
+    @staticmethod
+    def _lookup_transitions(event: str, state: 'State') -> List["Transition"]:
+        return (
+            state.get_transition(event)
+            if hasattr(state, 'get_transition')
+            else None
+        )
 
     def process_transitions(
         self, event: str, *args: Any, **kwargs: Any
-    ) -> None:
-        """Process transitions of a state change."""
-        statepath = kwargs.get('statepath')
-        state = self.get_state(statepath) if statepath else self.state
-        _transitions = (
-            state.get_transition(event)
-            if hasattr(state, 'get_transition')
-            else []
-        )
-        if _transitions == []:
-            raise InvalidTransition('no transitions match event')
-        _transition = self.__evaluate_guards(_transitions, *args, **kwargs)
-        _transition.run(self, *args, **kwargs)
-        log.info("processed transition event '%s'", _transition.event)
-
-    def __evaluate_guards(
-        self, transitions: Tuple['Transition', ...], *args: Any, **kwargs: Any
     ) -> 'Transition':
-        allowed = []
-        for _transition in transitions:
-            if _transition.evaluate(self, *args, **kwargs):
-                allowed.append(_transition)
-        if len(allowed) == 0:
+        """Get transition event from active states."""
+        # child => parent => grandparent
+        guarded: List['Transition'] = []
+        current: Optional['State'] = self.state
+        while current:
+            transitions: List['Transition'] = []
+
+            # search parallelstates for transitions
+            if isinstance(current, ParallelState):
+                for state in current.substates:
+                    transitions += self._lookup_transitions(event, state)
+            else:
+                transitions = self._lookup_transitions(event, current)
+
+            # evaluate guards
+            allowed = [
+                t for t in transitions if t.evaluate(self, *args, **kwargs)
+            ]
+            if allowed:
+                if len(allowed) > 1:
+                    raise ForkedTransition(
+                        'More than one transition was allowed for this event'
+                    )
+                return allowed[0]
+            current = self.superstate if current != self.superstate else None
+            guarded += transitions
+        if len(guarded) != 0:
             raise GuardNotSatisfied('no transition possible from state')
-        if len(allowed) > 1:
-            raise ForkedTransition(
-                'More than one transition was allowed for this event'
-            )
-        log.info("processed guard fo '%s'", allowed[0].event)
-        return allowed[0]
+        raise InvalidTransition(f"transition could not be found: {event}")
+
+    def trigger(
+        self, event: str, /, *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
+        """Transition from event to target state."""
+        transition = self.process_transitions(event)
+        if transition:
+            log.info('transitioning to %r', event)
+            result = transition.run(self, *args, **kwargs)
+            return result
+        raise InvalidTransition('transition %r not found', event)

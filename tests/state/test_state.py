@@ -31,7 +31,7 @@ def test_it_has_an_initial():
         )
 
     machine = MyMachine()
-    assert machine.initial == 'closed'
+    assert machine.superstate.initial == 'closed'
     assert machine.state == 'closed'
 
 
