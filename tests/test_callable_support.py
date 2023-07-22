@@ -58,7 +58,6 @@ def test_every_callback_is_callable():
     assert guy.state == 'looking'
     guy.trigger('jump')
     assert guy.state == 'falling'
-    print(footsteps)
     assert len(footsteps) == 5
     assert sorted(footsteps) == sorted(
         [

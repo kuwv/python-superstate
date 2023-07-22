@@ -1,3 +1,5 @@
+"""Test state independence."""
+
 from superstate import StateChart, state
 
 
@@ -32,7 +34,7 @@ class MyMachine(StateChart):
         self.on_count += 1
 
 
-def test_two_machines_dont_share_transitions():
+def test_two_machines_do_not_share_transitions():
     machine_a = MyMachine()
     machine_b = MyMachine()
 
@@ -45,7 +47,7 @@ def test_two_machines_dont_share_transitions():
     assert machine_b.state == 'off'
 
 
-def test_two_machines_dont_share_actions():
+def test_two_machines_do_not_share_actions():
     machine_a = MyMachine()
     machine_b = MyMachine()
 

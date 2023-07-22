@@ -8,7 +8,7 @@ version = "1.2.0a0"
 description = "Robust statechart for configurable automation rules."
 readme = "README.md"
 license = {file = "LICENSE"}
-keywords = ["statechart", "state machine"]
+keywords = ["statechart", "state machine", "scxml", "Harel"]
 requires-python = ">=3.6.2"
 authors = [{name = "Jesse P. Johnson", email = "jpj6652@gmail.com"}]
 maintainers = [{name = "Jesse P. Johnson", email = "jpj6652@gmail.com"}]
@@ -23,14 +23,15 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Software Development :: Libraries",
 ]
 
 [project.optional-dependencies]
+# history = ["eventsourcing"]
+# ecmascript = ["jyserver", "js2py"]
 # xml = ["xml2dict"]
-# js = ["js2py"]
 dev = [
-    "build",
     "proman-versioning>=0.5.0-alpha.2",
     "pylint>=2.9.5",
     "black==22.3.0",

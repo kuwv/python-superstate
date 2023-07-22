@@ -1,7 +1,18 @@
 """Provide states for statechart."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Tuple
+from itertools import chain
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Set,
+    Type,
+    Tuple,
+)
 
 from superstate.trigger import Action
 from superstate.exception import InvalidConfig, InvalidState, InvalidTransition
@@ -23,7 +34,7 @@ log = logging.getLogger(__name__)
 #     """Instantiate state types from class metadata."""
 #
 #     _initial: Optional['InitialType']
-#     _kind: Optional[str]
+#     _type: Optional[str]
 #     _states: List['State']
 #     _transitions: List['State']
 #     _on_entry: Optional['EventActions']
@@ -36,7 +47,7 @@ log = logging.getLogger(__name__)
 #         attrs: Dict[str, Any],
 #     ) -> 'MetaState':
 #         _initial = attrs.pop('__initial__', None)
-#         _kind = attrs.pop('__kind__', None)
+#         _kind = attrs.pop('__type__', None)
 #         _states = attrs.pop('__states__', None)
 #         _transitions = attrs.pop('__transitions__', None)
 #         _on_entry = attrs.pop('__on_entry__', None)
@@ -44,7 +55,7 @@ log = logging.getLogger(__name__)
 #
 #         obj = type.__new__(cls, name, bases, attrs)
 #         obj._initial = _initial
-#         obj._kind = _kind
+#         obj._kind = _type
 #         obj._states = _states
 #         obj._transitions = _transitions
 #         obj._on_entry = _on_entry
@@ -58,20 +69,19 @@ class State:
     # __slots__ = [
     #     '_name',
     #     '__initial',
-    #     '__substate',
-    #     '__substates',
+    #     '__state',
+    #     '__states',
     #     '__transitions',
     #     '__on_entry',
     #     '__on_exit',
-    #     '__kind',
+    #     '__type',
     # ]
     # name = cast(str, NameDescriptor('_name'))
-    superstate: Optional['CompositeState']
 
     # pylint: disable-next=unused-argument
     def __new__(cls, *args: Any, **kwargs: Any) -> 'State':
         """Return state type."""
-        kind = kwargs.get('kind')
+        kind = kwargs.get('type')
         states = kwargs.get('states')
         # transitions = kwargs.get('transitions')
         # if states and transitions:
@@ -102,19 +112,27 @@ class State:
         *args: Any,
         **kwargs: Any,
     ) -> None:
+        self.__superstate: Optional['CompositeState'] = None
         self.__name = name
-        self.__kind = kwargs.get('kind', 'atomic')
+        self.__type = kwargs.get('type', 'atomic')
+        # self.__ctx: Optional['StateChart'] = None
         # self.validate()
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
-            return self.__name == other.name
+            return self.name == other.name
         if isinstance(other, str):
-            return self.__name == other
+            return self.name == other
         return False
 
     def __repr__(self) -> str:
         return repr(f"{self.__class__.__name__}({self.name})")
+
+    def __reversed__(self) -> Generator['State', None, None]:
+        pointer: Optional['State'] = self
+        while pointer:
+            yield pointer
+            pointer = pointer.superstate
 
     @classmethod
     def lookup_subclasses(cls, obj: Type['State']) -> Set[Type['State']]:
@@ -129,15 +147,42 @@ class State:
         return self.__name
 
     @property
-    def kind(self) -> 'str':
-        """Get state type."""
-        return self.__kind
+    def path(self) -> str:
+        """Get the statepath of this state."""
+        return '.'.join(
+            reversed([x.name for x in reversed(self)])  # type: ignore
+        )
 
-    def run_on_entry(self, machine: 'StateChart') -> Optional[Any]:
+    @property
+    def type(self) -> 'str':
+        """Get state type."""
+        return self.__type
+
+    @property
+    def superstate(self) -> Optional['CompositeState']:
+        """Get parent state."""
+        return self.__superstate
+
+    @superstate.setter
+    def superstate(self, state: 'CompositeState') -> None:
+        if self.__superstate is None:
+            self.__superstate = state
+
+    # def ctx(self) -> Optional['StateChart']:
+    #     """Get current ctx of the statechart."""
+    #     return self.__ctx
+
+    # @ctx.setter
+    # def ctx(self, ctx: 'StateChart') -> None:
+    #     """Set the current ctx of the statechart."""
+    #     if not self.ctx:
+    #         self.__ctx = ctx
+
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-entry tasks."""
         # raise NotImplementedError
 
-    def run_on_exit(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-exit tasks."""
         # raise NotImplementedError
 
@@ -145,11 +190,11 @@ class State:
 class PseudoState(State):
     """Provide state for statechart."""
 
-    def run_on_entry(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-entry tasks."""
         raise InvalidTransition('cannot transition to pseudostate')
 
-    def run_on_exit(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-exit tasks."""
         raise InvalidTransition('cannot transition from pseudostate')
 
@@ -198,14 +243,16 @@ class FinalState(State):
         super().__init__(name, *args, **kwargs)
         self.__on_entry = kwargs.get('on_entry')
 
-    def run_on_entry(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_entry is not None:
-            Action(machine).run(self.__on_entry)
+            result = Action(ctx)(self.__on_entry)
             log.info(
                 "executed 'on_entry' state change action for %s", self.name
             )
+            return result
+        return None
 
-    def run_on_exit(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         raise InvalidTransition('final state cannot transition once entered')
 
 
@@ -233,11 +280,11 @@ class AtomicState(State):
             transition.callback().__get__(self, self.__class__),
         )
 
-    def __process_transient_state(self, machine: 'StateChart') -> None:
+    def __process_transient_state(self, ctx: 'StateChart') -> None:
         for transition in self.transitions:
             if transition.event == '':
                 # pylint: disable-next=protected-access
-                machine._auto_()
+                ctx._auto_()
                 break
 
     @property
@@ -258,19 +305,19 @@ class AtomicState(State):
             )
         )
 
-    def run_on_entry(self, machine: 'StateChart') -> Optional[Any]:
-        self.__process_transient_state(machine)
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+        self.__process_transient_state(ctx)
         if self.__on_entry is not None:
-            result = Action(machine).run(self.__on_entry)
+            result = Action(ctx)(self.__on_entry)
             log.info(
                 "executed 'on_entry' state change action for %s", self.name
             )
             return result
         return None
 
-    def run_on_exit(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit is not None:
-            result = Action(machine).run(self.__on_exit)
+            result = Action(ctx)(self.__on_exit)
             log.info(
                 "executed 'on_exit' state change action for %s", self.name
             )
@@ -281,17 +328,32 @@ class AtomicState(State):
 class CompositeState(AtomicState):
     """Provide composite abstract to define nested state types."""
 
+    __stack: List['State']
+
     def __getattr__(self, name: str) -> Any:
         if name.startswith('__'):
             raise AttributeError
-        for key in self.substates:
+        for key in self.states:
             if key == name:
-                return self.substates[name]
+                return self.states[name]
         raise AttributeError
 
+    def __iter__(self) -> 'CompositeState':
+        self.__stack = [self]
+        return self
+
+    def __next__(self) -> 'State':
+        # simple breadth-first iteration
+        if self.__stack:
+            x = self.__stack.pop()
+            if isinstance(x, CompositeState):
+                self.__stack = list(chain(x.states.values(), self.__stack))
+            return x
+        raise StopIteration
+
     @property
-    def substates(self) -> Dict[str, 'State']:
-        """Return substates."""
+    def states(self) -> Dict[str, 'State']:
+        """Return states."""
         raise NotImplementedError
 
     def add_state(self, state: 'State') -> None:
@@ -304,72 +366,92 @@ class CompositeState(AtomicState):
 
     def get_state(self, name: str) -> Optional['State']:
         """Get state by name."""
-        return self.substates.get(name)
+        return self.states.get(name)
 
 
 class CompoundState(CompositeState):
     """Provide nested state capabilitiy."""
 
-    __substate: 'State'
+    __state: 'State'
     initial: 'InitialType'
+    final: 'FinalState'
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.__substate = self
-        self.__substates = {}
-        for x in kwargs.pop('states', []):
-            x.superstate = self
-            self.__substates[x.name] = x
+        self.__state = self
+        self.__states = {}
+        for state in kwargs.pop('states', []):
+            state.superstate = self
+            self.__states[state.name] = state
         self.initial = kwargs.pop('initial')
         super().__init__(name, *args, **kwargs)
 
     @property
-    def substate(self) -> 'State':
+    def state(self) -> 'State':
         """Current substate of this state."""
-        return self.__substate
+        return self.__state
 
-    @substate.setter
-    def substate(self, name: str) -> None:
+    @state.setter
+    def state(self, state: 'State') -> None:
         """Set current substate of this state."""
         try:
-            self.__substate = self.substates[name]
+            self.__state = self.states[state.name]
         except KeyError as err:
-            raise InvalidState(f"substate could not be found: {name}") from err
+            raise InvalidState(
+                f"substate could not be found: {state.name}"
+            ) from err
 
     @property
-    def substates(self) -> Dict[str, 'State']:
-        """Return substates."""
-        return self.__substates
+    def states(self) -> Dict[str, 'State']:
+        """Return states."""
+        return self.__states
 
     def is_active(self, name: str) -> bool:
-        # print('substate is', self.substate.name, name)
-        return self.substate.name == name
+        """Check if a state is active or not."""
+        return self.state.name == name
 
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
         state.superstate = self
-        self.__substates[state.name] = state
+        self.__states[state.name] = state
 
-    def run_on_entry(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Tuple[Any, ...]]:
         # if next(
-        #     (x for x in self.substates if isinstance(x, HistoryState)), False
+        #     (x for x in self.states if isinstance(x, HistoryState)), False
         # ):
         #     ...
+        # XXX: initial can be None
         if not self.initial:
             raise InvalidConfig('an initial state must exist for statechart')
-        self.__substate = (
-            self.get_state(
-                self.initial(machine)
-                if callable(self.initial)
-                else self.initial
+        if self.initial:
+            self.__state = (
+                self.get_state(
+                    self.initial(ctx)
+                    if callable(self.initial)
+                    else self.initial
+                )
+                or self
             )
-            or self
-        )
-        return super().run_on_entry(machine)
+        results: List[Any] = []
+        results += filter(None, [super().run_on_entry(ctx)])
+        if hasattr(ctx.state, 'initial') and ctx.state.initial:
+            ctx.change_state(f"{ctx.state.path}.{ctx.state.initial}")
+        return tuple(results) if results else None
 
     # def validate(self) -> None:
-    #     """Validate state to ensure conformance with type requirements."""
-    #     if len(self.__substates) < 2:
-    #         raise InvalidConfig('There must be at least two states')
+    #     """Validate state to ensure conformance with type requirements.
+
+    #     The configuration contains exactly one child of the <scxml> element.
+    #     The configuration contains one or more atomic states.
+    #     When the configuration contains an atomic state, it contains all of
+    #         its <state> and <parallel> ancestors.
+    #     When the configuration contains a non-atomic <state>, it contains one
+    #         and only one of the state's states.
+    #     If the configuration contains a <parallel> state, it contains all of
+    #         its states.
+    #     """
+
+    #     if len(self.__states) < 1:
+    #         raise InvalidConfig('There must be one or more states')
     #     if not self.initial:
     #         raise InvalidConfig('There must exist an initial state')
 
@@ -377,57 +459,57 @@ class CompoundState(CompositeState):
 class ParallelState(CompositeState):
     """Provide parallel state capability for statechart."""
 
-    __substates: Dict[str, 'State']
+    __states: Dict[str, 'State']
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
         """Initialize compound state."""
-        self.__substates = {}
+        self.__states = {}
         for x in kwargs.pop('states', []):
             x.superstate = self
-            self.__substates[x.name] = x
+            self.__states[x.name] = x
         super().__init__(name, *args, **kwargs)
 
     @property
-    def substates(self) -> Dict[str, 'State']:
-        """Return substates."""
-        return self.__substates
+    def states(self) -> Dict[str, 'State']:
+        """Return states."""
+        return self.__states
 
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
         state.superstate = self
-        self.__substates[state.name] = state
+        self.__states[state.name] = state
 
     def is_active(self, name: str) -> bool:
-        for state in self.substates:
+        for state in self.states:
             if state == name:
                 return True
         return False
 
-    def run_on_entry(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         results = []
-        results.append(super().run_on_entry(machine))
-        for substate in reversed(self.substates.values()):
-            results.append(substate.run_on_entry(machine))
+        results.append(super().run_on_entry(ctx))
+        for state in reversed(self.states.values()):
+            results.append(state.run_on_entry(ctx))
         return results
 
-    def run_on_exit(self, machine: 'StateChart') -> Optional[Any]:
+    def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         results = []
-        for substate in reversed(self.substates.values()):
-            results.append(substate.run_on_exit(machine))
-        results.append(super().run_on_exit(machine))
+        for state in reversed(self.states.values()):
+            results.append(state.run_on_exit(ctx))
+        results.append(super().run_on_exit(ctx))
         return results
 
     # def validate(self) -> None:
     #     # TODO: empty statemachine should default to null event
-    #     if self.kind == 'compund':
-    #         if len(self.__substates) < 2:
+    #     if self.type == 'compund':
+    #         if len(self.__states) < 2:
     #             raise InvalidConfig('There must be at least two states')
     #         if not self.initial:
     #             raise InvalidConfig('There must exist an initial state')
-    #     if self.initial and self.kind == 'parallel':
+    #     if self.initial and self.type == 'parallel':
     #         raise InvalidConfig(
     #             'parallel state should not have an initial state'
     #         )
-    #     if self.kind == 'final' and self.__on_exit:
+    #     if self.type == 'final' and self.__on_exit:
     #         log.warning('final state will never run "on_exit" action')
     #     log.info('evaluated state')

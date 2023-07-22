@@ -35,9 +35,9 @@ class Door(StateChart):
 
 def test_notify_state_changes():
     door = Door()
-    door.open()
-    door.close()
-    door.crack()
+    door.trigger('open')
+    door.trigger('close')
+    door.trigger('crack')
     assert door.state_changes == [
         ('closed', 'open'),
         ('open', 'closed'),

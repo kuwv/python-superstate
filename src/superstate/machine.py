@@ -2,13 +2,14 @@
 
 import logging
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+)
 
 from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
-    ForkedTransition,
     GuardNotSatisfied,
 )
 from superstate.state import (
@@ -36,10 +37,10 @@ class MetaStateChart(type):
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
     ) -> 'MetaStateChart':
+        obj = super().__new__(cls, name, bases, attrs)
         machine = (
             attrs.pop('__superstate__') if '__superstate__' in attrs else None
         )
-        obj = super().__new__(cls, name, bases, attrs)
         if machine:
             obj._root = machine
         return obj
@@ -78,15 +79,14 @@ class StateChart(metaclass=MetaStateChart):
             )
         self.__superstate = self.__root
         # TODO: need to traverse initial or handle callable
-        self.__superstate.initial = kwargs.get(
+        self.__superstate.initial = kwargs.get(  # type: ignore
             'initial',
             self.__root.initial if hasattr(self.__root, 'initial') else None,
         )
         log.info('loaded states and transitions')
 
-        if kwargs.get('enable_start_transition', True):
-            self.superstate.run_on_entry(self)
-            self.state.run_on_entry(self)
+        self.superstate.run_on_entry(self)
+        self.state.run_on_entry(self)
         log.info('statechart initialization complete')
 
     def __getattr__(self, name: str) -> Any:
@@ -100,7 +100,7 @@ class StateChart(metaclass=MetaStateChart):
 
         # handle automatic transitions
         if name == '_auto_':
-            def wrapper(*args: Any, **kwargs: Any) -> None:
+            def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
                 return self.trigger('', *args, **kwargs)
             return wrapper
 
@@ -126,19 +126,34 @@ class StateChart(metaclass=MetaStateChart):
         # retrieve substate by name
         for key in list(self.states):
             if key == name:
-                return self.superstate.substates[name]
+                return self.superstate.states[name]
         raise AttributeError
+
+    @property
+    def initial(self) -> Union[str, Callable]:
+        """Return initial state of current superstate."""
+        return self.superstate.initial
+
+    @property
+    def root(self) -> 'CompositeState':
+        """Return root state of statechart."""
+        return self.__root
 
     @property
     def superstate(self) -> 'CompositeState':
         """Return superstate."""
         return self.__superstate
 
+    @superstate.setter
+    def superstate(self, state: 'CompositeState') -> None:
+        """Return superstate."""
+        self.__superstate = state
+
     @property
     def state(self) -> 'State':
         """Return the current state."""
         try:
-            return self.superstate.substate
+            return self.superstate.state
         except Exception as err:
             log.error(err)
             raise KeyError('state is undefined') from err
@@ -146,49 +161,78 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def states(self) -> Tuple['State', ...]:
         """Return list of states."""
-        return tuple(self.superstate.substates.values())
+        return tuple(self.superstate.states.values())
 
-    def change_state(
-        self,
-        statepath: str,
-        skip_triggers: bool = False,
-        skip_on_entry: bool = False,
-        skip_on_exit: bool = False,
-    ) -> None:
+    @property
+    def active(self) -> Tuple['State', ...]:
+        """Return active states."""
+        states: List['State'] = []
+        parents = list(reversed(self.state))  # type: ignore
+        for i, x in enumerate(parents):
+            n = i + 1
+            if not n >= len(parents) and isinstance(parents[n], ParallelState):
+                states += list((parents[n]).states)
+            else:
+                states.append(x)
+        return tuple(states)
+
+    def change_state(self, statepath: str) -> None:
         """Change current state to target state."""
+        # XXX: handle microstep / macrostep separately
+        # XXX: need a way to iterate nested initial states
         log.info('changing state from %s', statepath)
-        if not skip_triggers or not skip_on_exit:
-            self.state.run_on_exit(self)
+        # TODO: iterate each exit state and add results to exit set
+        # TODO: iterate each entry state and add results to entry set
+        self.state.run_on_exit(self)
         state = self.get_state(statepath)
-        if self.superstate != state.superstate:
+        if state.superstate and self.superstate != state.superstate:
+            self.superstate.run_on_exit(self)
             self.__superstate = state.superstate
-        self.__superstate.substate = state.name
-        if not skip_triggers or not skip_on_entry:
-            self.state.run_on_entry(self)
+            self.superstate.run_on_entry(self)
+        if isinstance(self.__superstate, CompoundState):
+            self.__superstate.state = state
+        self.state.run_on_entry(self)
         log.info('changed state to %s', statepath)
 
     def get_state(self, statepath: str) -> 'State':
-        """Get state from query path."""
-        log.info('lookup state at path %r', statepath)
+        """Get state."""
         subpaths = statepath.split('.')
+        pointer: 'State' = self.root
 
-        current: 'State' = self.__root
-        if statepath.startswith('..'):
-            current = self.superstate
-            for p in subpaths:
-                if p == '':
-                    current = current.superstate  # type: ignore
-                else:
-                    break
+        # general recursive search for single query
+        if len(subpaths) == 1 and isinstance(pointer, CompositeState):
+            for x in list(pointer):
+                if x == subpaths[0]:
+                    return x
+
+        # set start point for relative lookups
         elif statepath.startswith('.'):
-            current = self.state
+            relative = len(statepath) - len(statepath.lstrip('.')) - 1
+            pointer = self.active[relative:][0]
+            subpaths = [pointer.name] + subpaths[relative + 1:]
 
-        for i, state in enumerate(subpaths):
-            if current != state and isinstance(current, CompoundState):
-                current = current.substates[state]
-            if i == (len(subpaths) - 1):
-                log.info('found state %s', current)
-                return current
+        # check relative lookup is done
+        target = subpaths[-1]
+        if target in ('', pointer):
+            return pointer
+
+        # path based search
+        while pointer and subpaths:
+            subpath = subpaths.pop(0)
+            # skip if current pointer is at subpath
+            if pointer == subpath:
+                continue
+            # return current pointer if target found
+            if pointer == target:
+                return pointer
+            # walk path if exists
+            if hasattr(pointer, 'states') and subpath in pointer.states.keys():
+                pointer = pointer.states[subpath]
+                # check if target is found
+                if not subpaths:
+                    return pointer
+            else:
+                break
         raise InvalidState(f"state could not be found: {statepath}")
 
     def add_state(
@@ -209,12 +253,6 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def transitions(self) -> Tuple['Transition', ...]:
         """Return list of current transitions."""
-        # return tuple(
-        #     self.state.transitions + self.superstate.transitions
-        #     if self.state != self.superstate
-        #     and hasattr(self.state, 'transitions')
-        #     else self.superstate.transitions
-        # )
         return (
             tuple(self.state.transitions)
             if hasattr(self.state, 'transitions')
@@ -241,18 +279,17 @@ class StateChart(metaclass=MetaStateChart):
         )
 
     def process_transitions(
-        self, event: str, *args: Any, **kwargs: Any
+        self, event: str, /, *args: Any, **kwargs: Any
     ) -> 'Transition':
         """Get transition event from active states."""
         # child => parent => grandparent
         guarded: List['Transition'] = []
-        current: Optional['State'] = self.state
-        while current:
+        for current in self.active:
             transitions: List['Transition'] = []
 
-            # search parallelstates for transitions
+            # search parallel states for transitions
             if isinstance(current, ParallelState):
-                for state in current.substates:
+                for state in current.states.values():
                     transitions += self._lookup_transitions(event, state)
             else:
                 transitions = self._lookup_transitions(event, current)
@@ -262,12 +299,12 @@ class StateChart(metaclass=MetaStateChart):
                 t for t in transitions if t.evaluate(self, *args, **kwargs)
             ]
             if allowed:
-                if len(allowed) > 1:
-                    raise ForkedTransition(
-                        'More than one transition was allowed for this event'
-                    )
+                # if len(allowed) > 1:
+                #     raise InvalidConfig(
+                #         'Conflicting transitions were allowed for event',
+                #         event
+                #     )
                 return allowed[0]
-            current = self.superstate if current != self.superstate else None
             guarded += transitions
         if len(guarded) != 0:
             raise GuardNotSatisfied('no transition possible from state')
@@ -277,9 +314,9 @@ class StateChart(metaclass=MetaStateChart):
         self, event: str, /, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Transition from event to target state."""
-        transition = self.process_transitions(event)
+        transition = self.process_transitions(event, *args, **kwargs)
         if transition:
             log.info('transitioning to %r', event)
-            result = transition.run(self, *args, **kwargs)
+            result = transition(self, *args, **kwargs)
             return result
         raise InvalidTransition('transition %r not found', event)

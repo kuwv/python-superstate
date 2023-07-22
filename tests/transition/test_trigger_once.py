@@ -1,6 +1,6 @@
 import pytest
 
-from superstate import ForkedTransition, StateChart, state
+from superstate import StateChart, state
 
 
 class LoanRequest(StateChart):
@@ -59,12 +59,3 @@ def test_it_selects_the_transition_having_a_passing_guard():
     request.trigger('analyze', accepted=False)
     request.trigger('forward_analysis_result')
     assert request.state == 'refused'
-
-
-def test_it_raises_error_if_more_than_one_guard_passes():
-    request = LoanRequest()
-    request.trigger('analyze')
-    request.truify = True
-    # More than one transition was allowed for this event
-    with pytest.raises(ForkedTransition):
-        request.trigger('forward_analysis_result')
