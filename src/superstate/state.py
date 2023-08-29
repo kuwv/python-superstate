@@ -1,7 +1,7 @@
 """Provide states for statechart."""
 
 import logging
-from itertools import chain
+from itertools import chain  # , zip_longest
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -15,7 +15,7 @@ from typing import (
 )
 
 from superstate.trigger import Action
-from superstate.exception import InvalidConfig, InvalidState, InvalidTransition
+from superstate.exception import InvalidConfig, InvalidTransition
 
 # from superstate.models import NameDescriptor
 
@@ -77,6 +77,7 @@ class State:
     #     '__type',
     # ]
     # name = cast(str, NameDescriptor('_name'))
+    current_state: 'State'
 
     # pylint: disable-next=unused-argument
     def __new__(cls, *args: Any, **kwargs: Any) -> 'State':
@@ -153,6 +154,28 @@ class State:
             reversed([x.name for x in reversed(self)])  # type: ignore
         )
 
+    # @property
+    # def relpath(self) -> str:
+    #     if self.path == target:
+    #         relpath = '.'
+    #     else:
+    #         path = ['']
+    #         source_path = self.path.split('.')
+    #         target_path = target.split('.')
+    #         for i, x in enumerate(
+    #             zip_longest(source_path, target_path, fillvalue='')
+    #         ):
+    #             if x[0] != x[1]:
+    #                 if i == 0:
+    #                     raise Exception('no relative path exists')
+    #                 if x[0] != '':
+    #                     path.extend(['' for x in source_path[i:]])
+    #                 if x[1] != '':
+    #                     path.extend(target_path[i:])
+    #                 break
+    #         relpath = '.'.join(path)
+    #     return relpath
+
     @property
     def type(self) -> 'str':
         """Get state type."""
@@ -178,7 +201,9 @@ class State:
     #     if not self.ctx:
     #         self.__ctx = ctx
 
-    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+    def run_on_entry(
+        self, ctx: 'StateChart', enable_triggers: bool = False
+    ) -> Optional[Any]:
         """Run on-entry tasks."""
         # raise NotImplementedError
 
@@ -190,7 +215,9 @@ class State:
 class PseudoState(State):
     """Provide state for statechart."""
 
-    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+    def run_on_entry(
+        self, ctx: 'StateChart', enable_triggers: bool = False
+    ) -> Optional[Any]:
         """Run on-entry tasks."""
         raise InvalidTransition('cannot transition to pseudostate')
 
@@ -240,10 +267,16 @@ class FinalState(State):
     __on_entry: Optional['EventActions']
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        # if 'donedata' in kwargs:
+        #     self.__data = kwargs.pop('donedata')
         super().__init__(name, *args, **kwargs)
         self.__on_entry = kwargs.get('on_entry')
 
-    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+    def run_on_entry(
+        self, ctx: 'StateChart', enable_triggers: bool = False
+    ) -> Optional[Any]:
+        # NOTE: SCXML Processor MUST generate the event done.state.id after
+        # completion of the <onentry> elements
         if self.__on_entry is not None:
             result = Action(ctx)(self.__on_entry)
             log.info(
@@ -280,11 +313,10 @@ class AtomicState(State):
             transition.callback().__get__(self, self.__class__),
         )
 
-    def __process_transient_state(self, ctx: 'StateChart') -> None:
+    def _process_transient_state(self, ctx: 'StateChart') -> None:
         for transition in self.transitions:
             if transition.event == '':
-                # pylint: disable-next=protected-access
-                ctx._auto_()
+                ctx._auto_()  # pylint: disable=protected-access
                 break
 
     @property
@@ -305,8 +337,10 @@ class AtomicState(State):
             )
         )
 
-    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
-        self.__process_transient_state(ctx)
+    def run_on_entry(
+        self, ctx: 'StateChart', enable_triggers: bool = False
+    ) -> Optional[Any]:
+        self._process_transient_state(ctx)
         if self.__on_entry is not None:
             result = Action(ctx)(self.__on_entry)
             log.info(
@@ -372,12 +406,12 @@ class CompositeState(AtomicState):
 class CompoundState(CompositeState):
     """Provide nested state capabilitiy."""
 
-    __state: 'State'
+    # __state: 'State'
     initial: 'InitialType'
     final: 'FinalState'
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.__state = self
+        # self.__state = self
         self.__states = {}
         for state in kwargs.pop('states', []):
             state.superstate = self
@@ -385,20 +419,20 @@ class CompoundState(CompositeState):
         self.initial = kwargs.pop('initial')
         super().__init__(name, *args, **kwargs)
 
-    @property
-    def state(self) -> 'State':
-        """Current substate of this state."""
-        return self.__state
+    # @property
+    # def substate(self) -> 'State':
+    #     """Current substate of this state."""
+    #     return self.__state
 
-    @state.setter
-    def state(self, state: 'State') -> None:
-        """Set current substate of this state."""
-        try:
-            self.__state = self.states[state.name]
-        except KeyError as err:
-            raise InvalidState(
-                f"substate could not be found: {state.name}"
-            ) from err
+    # @substate.setter
+    # def substate(self, state: 'State') -> None:
+    #     """Set current substate of this state."""
+    #     try:
+    #         self.__state = self.states[state.name]
+    #     except KeyError as err:
+    #         raise InvalidState(
+    #             f"substate could not be found: {state.name}"
+    #         ) from err
 
     @property
     def states(self) -> Dict[str, 'State']:
@@ -407,14 +441,16 @@ class CompoundState(CompositeState):
 
     def is_active(self, name: str) -> bool:
         """Check if a state is active or not."""
-        return self.state.name == name
+        return self.substate.name == name
 
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
         state.superstate = self
         self.__states[state.name] = state
 
-    def run_on_entry(self, ctx: 'StateChart') -> Optional[Tuple[Any, ...]]:
+    def run_on_entry(
+        self, ctx: 'StateChart', enable_triggers: bool = True
+    ) -> Optional[Tuple[Any, ...]]:
         # if next(
         #     (x for x in self.states if isinstance(x, HistoryState)), False
         # ):
@@ -422,19 +458,16 @@ class CompoundState(CompositeState):
         # XXX: initial can be None
         if not self.initial:
             raise InvalidConfig('an initial state must exist for statechart')
-        if self.initial:
-            self.__state = (
-                self.get_state(
-                    self.initial(ctx)
-                    if callable(self.initial)
-                    else self.initial
-                )
-                or self
+        if self.initial and enable_triggers:
+            initial = (
+                self.initial(ctx) if callable(self.initial) else self.initial
             )
+            if initial and enable_triggers:
+                ctx.change_state(initial)
         results: List[Any] = []
-        results += filter(None, [super().run_on_entry(ctx)])
+        results += filter(None, [super().run_on_entry(ctx, enable_triggers)])
         if hasattr(ctx.state, 'initial') and ctx.state.initial:
-            ctx.change_state(f"{ctx.state.path}.{ctx.state.initial}")
+            ctx.change_state(ctx.state.initial)
         return tuple(results) if results else None
 
     # def validate(self) -> None:
@@ -485,7 +518,9 @@ class ParallelState(CompositeState):
                 return True
         return False
 
-    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+    def run_on_entry(
+        self, ctx: 'StateChart', enable_triggers: bool = False
+    ) -> Optional[Any]:
         results = []
         results.append(super().run_on_entry(ctx))
         for state in reversed(self.states.values()):

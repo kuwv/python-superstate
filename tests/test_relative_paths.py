@@ -13,7 +13,7 @@ class Fan(StateChart):
             'states': [
                 {
                     'name': 'off',
-                    'transitions': [{'event': 'turn-on', 'target': 'on'}],
+                    'transitions': [{'event': 'turn.on', 'target': 'on'}],
                 },
                 {
                     'name': 'on',
@@ -22,22 +22,21 @@ class Fan(StateChart):
                         {
                             'name': 'low',
                             'transitions': [
-                                {'event': 'turn-up', 'target': 'high'},
+                                {'event': 'turn.up', 'target': 'high'},
                             ],
                         },
                         {
                             'name': 'high',
                             'transitions': [
-                                {'event': 'turn-down', 'target': 'low'},
+                                {'event': 'turn.down', 'target': 'low'},
                             ],
                         },
                     ],
-                    'transitions': [{'event': 'turn-off', 'target': 'off'}],
+                    'transitions': [{'event': 'turn.off', 'target': 'off'}],
                 },
-            ]
+            ],
         }
     )
-
 
 
 def test_fully_qualified_paths():
@@ -61,7 +60,7 @@ def test_relative_paths():
 
 def test_transition_of_relative_state_target():
     fan = Fan()
-    fan.trigger('turn-on')
+    fan.trigger('turn.on')
     assert fan.state == 'low'
     assert fan.get_state('...') == 'motor'
     assert fan.get_state('...off') == 'off'
@@ -70,11 +69,11 @@ def test_transition_of_relative_state_target():
 
 def test_nested_relative_paths():
     fan = Fan()
-    fan.trigger('turn-on')
+    fan.trigger('turn.on')
     assert fan.state == 'low'
-    fan.trigger('turn-up')
-    assert fan.get_state('...on.high') == fan.state
-    fan.trigger('turn-down')
-    assert fan.get_state('...on.low') == fan.state
-    fan.trigger('turn-off')
+    fan.trigger('turn.up')
+    assert fan.get_state('high') == fan.state
+    fan.trigger('turn.down')
+    assert fan.get_state('low') == fan.state
+    fan.trigger('turn.off')
     assert fan.state == 'off'

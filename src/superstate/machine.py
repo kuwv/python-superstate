@@ -2,8 +2,16 @@
 
 import logging
 from copy import deepcopy
+from itertools import zip_longest
 from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
 )
 
 from superstate.exception import (
@@ -15,7 +23,7 @@ from superstate.exception import (
 from superstate.state import (
     AtomicState,
     CompositeState,
-    CompoundState,
+    # CompoundState,
     ParallelState,
 )
 
@@ -51,6 +59,7 @@ class StateChart(metaclass=MetaStateChart):
 
     # __slots__ = ['__root', '__state', '__superstate', '__dict__', 'initial']
     __root: 'CompositeState'
+    __state: 'State'
     __superstate: 'CompositeState'
 
     def __init__(
@@ -77,15 +86,27 @@ class StateChart(metaclass=MetaStateChart):
             raise InvalidConfig(
                 'attempted initialization with empty superstate'
             )
-        self.__superstate = self.__root
-        # TODO: need to traverse initial or handle callable
-        self.__superstate.initial = kwargs.get(  # type: ignore
+        self.__state = self.__root
+
+        # initial setup
+        self.__initial = kwargs.get(
             'initial',
-            self.__root.initial if hasattr(self.__root, 'initial') else None,
+            self.root.initial if hasattr(self.root, 'initial') else None,
         )
+        self.state._process_transient_state(self)  # type: ignore
+        if self.root == self.state:
+            initial = (
+                self.initial(self) if callable(self.initial) else self.initial
+            )
+            if initial:
+                self.__state = self.get_state(initial)
+            else:
+                raise InvalidConfig(
+                    'an initial state must exist for statechart'
+                )
         log.info('loaded states and transitions')
 
-        self.superstate.run_on_entry(self)
+        # self.superstate.run_on_entry(self)
         self.state.run_on_entry(self)
         log.info('statechart initialization complete')
 
@@ -96,12 +117,14 @@ class StateChart(metaclass=MetaStateChart):
 
         # handle state check locally
         if name.startswith('is_'):
-            return self.superstate.is_active(name[3:])
+            return name[3:] in self.active
 
         # handle automatic transitions
         if name == '_auto_':
+
             def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
                 return self.trigger('', *args, **kwargs)
+
             return wrapper
 
         # directly transition by event name
@@ -130,9 +153,9 @@ class StateChart(metaclass=MetaStateChart):
         raise AttributeError
 
     @property
-    def initial(self) -> Union[str, Callable]:
+    def initial(self) -> Union[Callable, 'State', str]:
         """Return initial state of current superstate."""
-        return self.superstate.initial
+        return self.__initial
 
     @property
     def root(self) -> 'CompositeState':
@@ -142,21 +165,12 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def superstate(self) -> 'CompositeState':
         """Return superstate."""
-        return self.__superstate
-
-    @superstate.setter
-    def superstate(self, state: 'CompositeState') -> None:
-        """Return superstate."""
-        self.__superstate = state
+        return self.state.superstate or self.root
 
     @property
     def state(self) -> 'State':
         """Return the current state."""
-        try:
-            return self.superstate.state
-        except Exception as err:
-            log.error(err)
-            raise KeyError('state is undefined') from err
+        return self.__state
 
     @property
     def states(self) -> Tuple['State', ...]:
@@ -176,61 +190,102 @@ class StateChart(metaclass=MetaStateChart):
                 states.append(x)
         return tuple(states)
 
+    def get_relpath(self, target: str) -> str:
+        """Get relative statepath of target state to current state."""
+        if self.state == target:
+            relpath = '.'
+        else:
+            path = ['']
+            source_path = self.state.path.split('.')
+            target_path = self.get_state(target).path.split('.')
+            for i, x in enumerate(
+                zip_longest(source_path, target_path, fillvalue='')
+            ):
+                if x[0] != x[1]:
+                    if x[0] != '':
+                        path.extend(['' for x in source_path[i:]])
+                    if x[1] != '':
+                        path.extend(target_path[i:])
+                    if i == 0:
+                        raise Exception(
+                            f"no relative path exists for: {target!s}"
+                        )
+                    break
+            relpath = '.'.join(path)
+        return relpath
+
     def change_state(self, statepath: str) -> None:
-        """Change current state to target state."""
-        # XXX: handle microstep / macrostep separately
-        # XXX: need a way to iterate nested initial states
-        log.info('changing state from %s', statepath)
-        # TODO: iterate each exit state and add results to exit set
-        # TODO: iterate each entry state and add results to entry set
-        self.state.run_on_exit(self)
-        state = self.get_state(statepath)
-        if state.superstate and self.superstate != state.superstate:
-            self.superstate.run_on_exit(self)
-            self.__superstate = state.superstate
-            self.superstate.run_on_entry(self)
-        if isinstance(self.__superstate, CompoundState):
-            self.__superstate.state = state
-        self.state.run_on_entry(self)
+        """Traverse statepath."""
+        relpath = self.get_relpath(statepath)
+        if relpath == '.':
+            self.state.run_on_exit(self)
+            self.state.run_on_entry(self)
+        else:
+            subpaths = relpath.split('.')
+            size = len(subpaths) - 1
+            for index, subpath in enumerate(subpaths):
+                try:
+                    if subpath == '':
+                        if index == 0:
+                            continue
+                        self.state.run_on_exit(self)
+                        self.__state = self.active[1]
+                    elif (
+                        isinstance(self.state, CompositeState)
+                        and subpath in self.state.states.keys()
+                    ):
+                        state = self.state.states[subpath]
+                        self.__state = state
+                        state.run_on_entry(
+                            self, enable_triggers=(index == size)
+                        )
+                    else:
+                        raise Exception(f"path not found: {statepath}")
+                except Exception as err:
+                    log.error(err)
+                    raise KeyError('superstate is undefined') from err
+        # if type(self.state) not in [AtomicState, ParallelState]:
+        #     # TODO: need to transition from CompoundState to AtomicState
+        #     print('state transition not complete')
         log.info('changed state to %s', statepath)
 
     def get_state(self, statepath: str) -> 'State':
         """Get state."""
         subpaths = statepath.split('.')
-        pointer: 'State' = self.root
+        state: 'State' = self.root
 
         # general recursive search for single query
-        if len(subpaths) == 1 and isinstance(pointer, CompositeState):
-            for x in list(pointer):
+        if len(subpaths) == 1 and isinstance(state, CompositeState):
+            for x in list(state):
                 if x == subpaths[0]:
                     return x
-
         # set start point for relative lookups
         elif statepath.startswith('.'):
             relative = len(statepath) - len(statepath.lstrip('.')) - 1
-            pointer = self.active[relative:][0]
-            subpaths = [pointer.name] + subpaths[relative + 1:]
+            state = self.active[relative:][0]
+            rel = relative + 1
+            subpaths = [state.name] + subpaths[rel:]
 
         # check relative lookup is done
         target = subpaths[-1]
-        if target in ('', pointer):
-            return pointer
+        if target in ('', state):
+            return state
 
         # path based search
-        while pointer and subpaths:
+        while state and subpaths:
             subpath = subpaths.pop(0)
-            # skip if current pointer is at subpath
-            if pointer == subpath:
+            # skip if current state is at subpath
+            if state == subpath:
                 continue
-            # return current pointer if target found
-            if pointer == target:
-                return pointer
+            # return current state if target found
+            if state == target:
+                return state
             # walk path if exists
-            if hasattr(pointer, 'states') and subpath in pointer.states.keys():
-                pointer = pointer.states[subpath]
+            if hasattr(state, 'states') and subpath in state.states.keys():
+                state = state.states[subpath]
                 # check if target is found
                 if not subpaths:
-                    return pointer
+                    return state
             else:
                 break
         raise InvalidState(f"state could not be found: {statepath}")
@@ -275,7 +330,7 @@ class StateChart(metaclass=MetaStateChart):
         return (
             state.get_transition(event)
             if hasattr(state, 'get_transition')
-            else None
+            else []
         )
 
     def process_transitions(
@@ -306,6 +361,7 @@ class StateChart(metaclass=MetaStateChart):
                 #     )
                 return allowed[0]
             guarded += transitions
+        print(guarded)
         if len(guarded) != 0:
             raise GuardNotSatisfied('no transition possible from state')
         raise InvalidTransition(f"transition could not be found: {event}")
@@ -314,6 +370,7 @@ class StateChart(metaclass=MetaStateChart):
         self, event: str, /, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Transition from event to target state."""
+        # XXX: currently does not allow contional transient states
         transition = self.process_transitions(event, *args, **kwargs)
         if transition:
             log.info('transitioning to %r', event)

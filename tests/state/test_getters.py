@@ -16,27 +16,38 @@ class JumperGuy(StateChart):
     )
 
 
-def test_it_has_boolean_getters_for_the_states():
+def test_it_has_boolean_getters_for_the_states() -> None:
+    """Test existence of boolean getters for states."""
     guy = JumperGuy()
-    assert hasattr(guy, 'is_looking')
-    assert hasattr(guy, 'is_falling')
     assert guy.state == 'looking'
     assert guy.state != 'falling'
+    assert hasattr(guy, 'is_looking')
+    assert guy.is_looking
+    assert not guy.is_falling
 
     guy.trigger('jump')
     assert guy.state != 'looking'
     assert guy.state == 'falling'
+    assert hasattr(guy, 'is_falling')
+    assert not guy.is_looking
+    assert guy.is_falling
 
 
-def test_it_has_boolean_getters_for_individual_states():
+def test_it_has_boolean_getters_for_individual_states() -> None:
+    """Test existences of boolean getters for individual states."""
     guy = JumperGuy()
     guy.add_state(State('squashed'))
     assert hasattr(guy, 'is_squashed')
-    assert guy.state != 'squashed'
+    assert not guy.is_squashed
 
     guy.add_transition(
         Transition(event='land', target='squashed'), statepath='falling'
     )
+
     guy.trigger('jump')
+    assert guy.is_falling
+    assert not guy.is_squashed
+
     guy.trigger('land')
-    assert guy.state == 'squashed'
+    assert not guy.is_falling
+    assert guy.is_squashed

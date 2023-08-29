@@ -8,6 +8,7 @@ from superstate.trigger import Action, Guard
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
+
     # from superstate.state import State
     from superstate.types import EventActions, GuardConditions
 
@@ -15,7 +16,15 @@ log = logging.getLogger(__name__)
 
 
 class Transition:
-    """Represent statechart transition."""
+    """Represent statechart transition.
+
+    [Definition: A transition matches an event if at least one of its event
+    descriptors matches the event's name. ]
+
+    [Definition: An event descriptor matches an event name if its string of
+    tokens is an exact match or a prefix of the set of tokens in the event's
+    name. In all cases, the token matching is case sensitive. ]
+    """
 
     # __slots__ = ['event', 'target', 'action', 'cond']
     # event = cast(str, NameDescriptor())
@@ -51,12 +60,13 @@ class Transition:
             )
         else:
             target = self.target
-        ctx.change_state(target)
+        result = None
         if self.action:
             log.info("executed action event for %r", self.event)
-            return Action(ctx)(self.action, *args, **kwargs)
+            result = Action(ctx)(self.action, *args, **kwargs)
+        ctx.change_state(target)
         log.info("no action event for %r", self.event)
-        return None
+        return result
 
     def __repr__(self) -> str:
         return repr(f"Transition(event={self.event}, target={self.target})")
@@ -72,12 +82,6 @@ class Transition:
         event.__doc__ = f"Transition event: '{self.event}'."
         return event
 
-    def evaluate(
-        self, ctx: 'StateChart', *args: Any, **kwargs: Any
-    ) -> bool:
+    def evaluate(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
         """Evaluate guards of transition."""
-        return (
-            Guard(ctx)(self.cond, *args, **kwargs)
-            if self.cond
-            else True
-        )
+        return Guard(ctx)(self.cond, *args, **kwargs) if self.cond else True
