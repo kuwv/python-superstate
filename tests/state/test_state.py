@@ -81,16 +81,16 @@ def test_it_defines_states_using_method_calls():
     assert machine.states == ('idle', 'working')
 
 
-# FIXME: cannot use lamda initialization
 def test_its_initial_may_be_a_callable():
     def is_business_hours():
+        """Set attribute that is used by initial callable."""
         return True
 
     class Person(StateChart):
         __superstate__ = state(
             {
                 'initial': (
-                    lambda person: (person.worker and is_business_hours())
+                    lambda person: (person.working and is_business_hours())
                     and 'awake'
                     or 'sleeping'
                 ),
@@ -98,12 +98,12 @@ def test_its_initial_may_be_a_callable():
             }
         )
 
-        def __init__(self, worker):
-            self.worker = worker
+        def __init__(self, working):
+            self.working = working
             super().__init__()
 
-    person = Person(worker=True)
+    person = Person(working=True)
     assert person.state == 'awake'
 
-    person = Person(worker=False)
+    person = Person(working=False)
     assert person.state == 'sleeping'

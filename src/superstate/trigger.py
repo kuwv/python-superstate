@@ -25,12 +25,12 @@ class Activity:
 class Action:
     """Provide executable action from transition."""
 
-    __slots__ = ['__machine']
+    __slots__ = ['__ctx']
 
-    def __init__(self, machine: 'StateChart') -> None:
-        self.__machine = machine
+    def __init__(self, ctx: 'StateChart') -> None:
+        self.__ctx = ctx
 
-    def run(
+    def __call__(
         self,
         params: 'EventActions',
         *args: Any,
@@ -46,10 +46,10 @@ class Action:
     ) -> Any:
         if callable(action):
             return self.__run_with_args(
-                action, self.__machine, *args, **kwargs
+                action, self.__ctx, *args, **kwargs
             )
         return self.__run_with_args(
-            getattr(self.__machine, action), *args, **kwargs
+            getattr(self.__ctx, action), *args, **kwargs
         )
 
     @staticmethod
@@ -63,12 +63,12 @@ class Action:
 class Guard:
     """Provide guard condition to determine when transitions should occur."""
 
-    __slots__ = ['__machine']
+    __slots__ = ['__ctx']
 
-    def __init__(self, machine: 'StateChart') -> None:
-        self.__machine = machine
+    def __init__(self, ctx: 'StateChart') -> None:
+        self.__ctx = ctx
 
-    def evaluate(
+    def __call__(
         self, cond: 'GuardConditions', *args: Any, **kwargs: Any
     ) -> bool:
         """Evaluate condition to determine if transition should occur."""
@@ -83,8 +83,8 @@ class Guard:
         self, cond: 'GuardCondition', *args: Any, **kwargs: Any
     ) -> bool:
         if callable(cond):
-            return cond(self.__machine, *args, **kwargs)
-        guard = getattr(self.__machine, cond)
+            return cond(self.__ctx, *args, **kwargs)
+        guard = getattr(self.__ctx, cond)
         if callable(guard):
             return self.__evaluate_with_args(guard, *args, **kwargs)
         return bool(guard)

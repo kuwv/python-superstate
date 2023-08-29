@@ -8,7 +8,7 @@ from superstate import (
 )
 
 
-def test_it_requires_minimal_two_states():
+def test_it_requires_minimal_state() -> None:
     class MyMachine(StateChart):
         """Machine to validate config."""
 
@@ -17,6 +17,8 @@ def test_it_requires_minimal_two_states():
         MyMachine()
 
     class OtherMachine(StateChart):
+        """Other machine to validate config."""
+
         __superstate__ = state({'states': [State('open')]})
 
     # There must be at least two states
@@ -24,8 +26,10 @@ def test_it_requires_minimal_two_states():
         OtherMachine()
 
 
-def test_it_requires_an_initial():
+def test_it_requires_an_initial() -> None:
     class MyMachine(StateChart):
+        """Machine to validate config."""
+
         __superstate__ = state({'states': [State('open'), State('closed')]})
 
     # There must be at least two states
@@ -33,6 +37,8 @@ def test_it_requires_an_initial():
         MyMachine()
 
     class AnotherMachine(StateChart):
+        """Another machine to validate config."""
+
         __superstate__ = state(
             {
                 'initial': None,

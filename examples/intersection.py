@@ -57,7 +57,7 @@ class Intersection(StateChart):
 
     __superstate__ = State(
         name='intersection',
-        kind='parallel',
+        type='parallel',
         states=[
             StopLight('north_south', 'red'),
             StopLight('east_west', 'green'),
@@ -65,24 +65,24 @@ class Intersection(StateChart):
     )
 
     def __change_light(self, active: str, inactive: str) -> None:
-        self.transition(
+        self.trigger(
             'turn_yellow', statepath=f"intersection.{active}.green"
         )
-        self.transition('turn_red', statepath=f"intersection.{active}.yellow")
-        self.transition('turn_green', statepath=f"intersection.{inactive}.red")
+        self.trigger('turn_red', statepath=f"intersection.{active}.yellow")
+        self.trigger('turn_green', statepath=f"intersection.{inactive}.red")
 
     def change_light(self) -> None:
         """Start timing length of red light."""
-        print('substate', self.north_south.substate, self.east_west.substate)
+        print('state', self.north_south.state, self.east_west.state)
 
         assert self.is_north_south is True
         assert self.is_east_west is True
         assert self.is_nothing is False
 
-        if self.north_south.substate == 'green':
+        if self.north_south.state == 'green':
             self.__change_light(active='north_south', inactive='east_west')
 
-        if self.east_west.substate == 'green':
+        if self.east_west.state == 'green':
             self.__change_light(active='east_west', inactive='north_south')
             # self.east_west.green.turn_yellow()
             # self.east_west.yellow.turn_red()

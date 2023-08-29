@@ -6,14 +6,14 @@ footsteps = []
 
 
 class Foo:
-    def bar(self):
+    def bar(self) -> None:
         footsteps.append('looking:on_exit')
 
 
 foo = Foo()
 
 
-def pre_falling_function():
+def pre_falling_function() -> None:
     footsteps.append('falling:on_entry')
 
 
@@ -29,10 +29,10 @@ class JumperGuy(StateChart):
                             'event': 'jump',
                             'target': 'falling',
                             'action': (
-                                lambda jumper: jumper.append('looking:action')
+                                lambda jumper: jumper.append('jump:action')
                             ),
                             'cond': (
-                                lambda jumper: jumper.append('looking:cond')
+                                lambda jumper: jumper.append('jump:cond')
                                 is None
                             ),
                         }
@@ -48,30 +48,27 @@ class JumperGuy(StateChart):
     )
 
     @staticmethod
-    def append(text):
+    def append(text) -> None:
         footsteps.append(text)
 
 
-def test_every_callback_is_callable():
+def test_every_callback_is_callable() -> None:
     """every callback can be a callable"""
     guy = JumperGuy()
     assert guy.state == 'looking'
     guy.trigger('jump')
     assert guy.state == 'falling'
-    print(footsteps)
     assert len(footsteps) == 5
-    assert sorted(footsteps) == sorted(
-        [
-            'looking:cond',
-            'looking:on_entry',
-            'looking:action',
-            'looking:on_exit',
-            'falling:on_entry',
-        ]
-    )
+    assert footsteps == [
+        'looking:on_entry',
+        'jump:cond',
+        'jump:action',
+        'looking:on_exit',
+        'falling:on_entry',
+    ]
 
 
-def test_deny_state_change_if_guard_callable_returns_false():
+def test_deny_state_change_if_guard_callable_returns_false() -> None:
     class Door(StateChart):
         __superstate__ = state(
             {
@@ -92,7 +89,7 @@ def test_deny_state_change_if_guard_callable_returns_false():
             }
         )
 
-        def locked(self):
+        def locked(self) -> None:
             return self.locked
 
     door = Door()

@@ -19,7 +19,3 @@ class InvalidState(SuperstateException):
 
 class GuardNotSatisfied(SuperstateException):
     """Manage superstate guard excluded transition exceptions."""
-
-
-class ForkedTransition(SuperstateException):
-    """Manage superstate transition containing forked path exceptions."""

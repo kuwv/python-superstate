@@ -4,6 +4,8 @@ from superstate import StateChart, state
 
 
 class Intersection(StateChart):
+    """Provide an example street intersection."""
+
     __superstate__ = state(
         {
             # not a parallel machine
@@ -77,3 +79,7 @@ class Intersection(StateChart):
             ],
         }
     )
+
+
+if __name__ == '__main__':
+    intesection = Intersection()

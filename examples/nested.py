@@ -46,6 +46,7 @@ class Nested(StateChart):
                                     'transitions': [
                                         {
                                             'event': 'change',
+                                            # XXX: this does not seem right
                                             'target': 'end',
                                             'action': lambda: print(
                                                 'transitioning to end'

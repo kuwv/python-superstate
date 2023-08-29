@@ -27,7 +27,6 @@ from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
-    ForkedTransition,
     GuardNotSatisfied,
 )
 from superstate.machine import StateChart
@@ -67,7 +66,6 @@ __all__ = (
     'InvalidConfig',
     'InvalidState',
     'InvalidTransition',
-    'ForkedTransition',
     'GuardNotSatisfied',
     # helper functions
     'states',
@@ -86,10 +84,11 @@ def transition(config: Union['Transition', dict]) -> 'Transition':
         return config
     if isinstance(config, dict):
         return Transition(
-            event=config['event'],
-            target=config['target'],
+            event=config.get('event', ''),
+            target=config['target'],  # XXX: should allow optional
             action=config.get('action'),
             cond=config.get('cond'),
+            # kind=config.get('type', 'internal'),
         )
     raise InvalidConfig('could not find a valid transition configuration')
 
@@ -111,9 +110,9 @@ def state(
     if isinstance(config, dict):
         cls = config.pop('factory', State)
         return cls(
-            name=config.get('name', 'superstate'),
+            name=config.get('name', 'root'),
             initial=config.get('initial'),
-            kind=config.get('kind'),
+            type=config.get('type'),
             states=(states(*config['states']) if 'states' in config else []),
             transitions=(
                 transitions(*config['transitions'])
