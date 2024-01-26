@@ -1,42 +1,40 @@
 """Provide example meta-state."""
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class Fan(StateChart):
     """Example fan."""
 
-    __superstate__ = state(
-        {
-            'name': 'motor',
-            'initial': 'off',
-            'states': [
-                {
-                    'name': 'off',
-                    'transitions': [{'event': 'turn.on', 'target': 'on'}],
-                },
-                {
-                    'name': 'on',
-                    'initial': 'low',
-                    'states': [
-                        {
-                            'name': 'low',
-                            'transitions': [
-                                {'event': 'turn.up', 'target': 'high'},
-                            ],
-                        },
-                        {
-                            'name': 'high',
-                            'transitions': [
-                                {'event': 'turn.down', 'target': 'low'},
-                            ],
-                        },
-                    ],
-                    'transitions': [{'event': 'turn.off', 'target': 'off'}],
-                },
-            ],
-        }
-    )
+    __state__ = {
+        'name': 'motor',
+        'initial': 'off',
+        'states': [
+            {
+                'name': 'off',
+                'transitions': [{'event': 'turn.on', 'target': 'on'}],
+            },
+            {
+                'name': 'on',
+                'initial': 'low',
+                'states': [
+                    {
+                        'name': 'low',
+                        'transitions': [
+                            {'event': 'turn.up', 'target': 'high'},
+                        ],
+                    },
+                    {
+                        'name': 'high',
+                        'transitions': [
+                            {'event': 'turn.down', 'target': 'low'},
+                        ],
+                    },
+                ],
+                'transitions': [{'event': 'turn.off', 'target': 'off'}],
+            },
+        ],
+    }
 
 
 def test_fully_qualified_paths():

@@ -1,29 +1,28 @@
 import pytest
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class CrazyGuy(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'looking',
-            'states': [
-                {
-                    'name': 'looking',
-                    'transitions': [
-                        {
-                            'event': 'jump',
-                            'target': 'falling',
-                            'action': 'become_at_risk',
-                            'cond': 'always_can_jump',
-                        },
-                    ],
-                    'on_exit': 'no_lookin_anymore',
-                },
-                {'name': 'falling', 'on_entry': 'will_fall_right_now'},
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'looking',
+        'datamodel': {'type': 'python'},
+        'states': [
+            {
+                'name': 'looking',
+                'transitions': [
+                    {
+                        'event': 'jump',
+                        'target': 'falling',
+                        'action': 'become_at_risk',
+                        'cond': 'always_can_jump',
+                    },
+                ],
+                'on_exit': 'no_lookin_anymore',
+            },
+            {'name': 'falling', 'on_entry': 'will_fall_right_now'},
+        ],
+    }
 
     def __init__(self):
         super().__init__()

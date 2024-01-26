@@ -1,31 +1,30 @@
 """Test state types and respective transitions."""
+
 import pytest
 
-from superstate import InvalidTransition, StateChart, state
+from superstate import InvalidTransition, StateChart
 
 
 class Machine(StateChart):
     """Provide example statechart."""
 
-    __superstate__ = state(
-        {
-            'name': 'engine',
-            'initial': 'stopped',
-            'states': [
-                {
-                    'name': 'started',
-                    'transitions': [
-                        {'event': 'restart', 'target': 'started'},
-                        {'event': 'stop', 'target': 'stopped'},
-                    ],
-                },
-                {'name': 'stopped', 'type': 'final'},
-            ],
-            'transitions': [
-                {'target': 'started', 'cond': lambda ctx: ctx.autostart}
-            ],
-        }
-    )
+    __state__ = {
+        'name': 'engine',
+        'initial': 'stopped',
+        'states': [
+            {
+                'name': 'started',
+                'transitions': [
+                    {'event': 'restart', 'target': 'started'},
+                    {'event': 'stop', 'target': 'stopped'},
+                ],
+            },
+            {'name': 'stopped', 'type': 'final'},
+        ],
+        'transitions': [
+            {'target': 'started', 'cond': lambda ctx: ctx.autostart}
+        ],
+    }
 
     def __init__(self, autostart: bool = False) -> None:
         self.autostart = autostart

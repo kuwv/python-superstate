@@ -1,19 +1,17 @@
-from superstate import StateChart, State, Transition, state
+from superstate import StateChart, State, Transition
 
 
 class JumperGuy(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'looking',
-            'states': [
-                State(
-                    'looking',
-                    transitions=[Transition(event='jump', target='falling')],
-                ),
-                State('falling'),
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'looking',
+        'states': [
+            State(
+                'looking',
+                transitions=[Transition(event='jump', target='falling')],
+            ),
+            State('falling'),
+        ],
+    }
 
 
 def test_it_has_boolean_getters_for_the_states() -> None:

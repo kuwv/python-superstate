@@ -6,7 +6,7 @@ from superstate import StateChart, state
 class Nested(StateChart):
     """Proide an object representing a nested."""
 
-    __superstate__ = state(
+    __state__ = state(
         {
             'initial': 'start',
             'states': [

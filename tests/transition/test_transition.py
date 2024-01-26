@@ -5,36 +5,33 @@ import pytest
 from superstate import (
     # InvalidTransition,
     StateChart,
-    state,
 )
 
 
 class MyMachine(StateChart):
     """Provide statechart to verify transitions."""
 
-    __superstate__ = state(
-        {
-            'initial': 'created',
-            'states': [
-                {
-                    'name': 'created',
-                    'transitions': [
-                        {'event': 'queue', 'target': 'waiting'},
-                        {'event': 'cancel', 'target': 'cancelled'},
-                    ],
-                },
-                {
-                    'name': 'waiting',
-                    'transitions': [
-                        {'event': 'process', 'target': 'processed'},
-                        {'event': 'cancel', 'target': 'cancelled'},
-                    ],
-                },
-                {'name': 'processed'},
-                {'name': 'cancelled'},
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'created',
+        'states': [
+            {
+                'name': 'created',
+                'transitions': [
+                    {'event': 'queue', 'target': 'waiting'},
+                    {'event': 'cancel', 'target': 'cancelled'},
+                ],
+            },
+            {
+                'name': 'waiting',
+                'transitions': [
+                    {'event': 'process', 'target': 'processed'},
+                    {'event': 'cancel', 'target': 'cancelled'},
+                ],
+            },
+            {'name': 'processed'},
+            {'name': 'cancelled'},
+        ],
+    }
 
 
 def test_its_declaration_creates_a_method_with_its_name():

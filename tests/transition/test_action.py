@@ -1,25 +1,23 @@
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class CrazyGuy(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'looking',
-            'states': [
-                {
-                    'name': 'looking',
-                    'transitions': [
-                        {
-                            'event': 'jump',
-                            'target': 'falling',
-                            'action': ['become_at_risk', 'accelerate'],
-                        }
-                    ],
-                },
-                {'name': 'falling'},
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'looking',
+        'states': [
+            {
+                'name': 'looking',
+                'transitions': [
+                    {
+                        'event': 'jump',
+                        'target': 'falling',
+                        'action': ['become_at_risk', 'accelerate'],
+                    }
+                ],
+            },
+            {'name': 'falling'},
+        ],
+    }
 
     def __init__(self):
         super().__init__()

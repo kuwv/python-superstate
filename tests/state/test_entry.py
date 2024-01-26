@@ -1,24 +1,24 @@
-from superstate import StateChart, state
+"""Test on entry of a state."""
+
+from superstate import StateChart
 
 
 class ActionMachine(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'created',
-            'states': [
-                {
-                    'name': 'created',
-                    'transitions': [{'event': 'queue', 'target': 'waiting'}],
-                    'on_entry': 'about_to_create',
-                    'on_exit': ['other_on_exit_create', 'on_exit_create'],
-                },
-                {
-                    'name': 'waiting',
-                    'on_entry': ['pre_wait', 'other_pre_wait'],
-                },
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'created',
+        'states': [
+            {
+                'name': 'created',
+                'transitions': [{'event': 'queue', 'target': 'waiting'}],
+                'on_entry': 'about_to_create',
+                'on_exit': ['other_on_exit_create', 'on_exit_create'],
+            },
+            {
+                'name': 'waiting',
+                'on_entry': ['pre_wait', 'other_pre_wait'],
+            },
+        ],
+    }
 
     def __init__(self):
         self.pre_create = False

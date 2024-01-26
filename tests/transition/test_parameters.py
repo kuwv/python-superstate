@@ -1,34 +1,32 @@
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class Door(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'closed',
-            'states': [
-                {
-                    'name': 'closed',
-                    'transitions': [
-                        {
-                            'event': 'open',
-                            'target': 'open',
-                            'action': 'open_action',
-                        }
-                    ],
-                },
-                {
-                    'name': 'open',
-                    'transitions': [
-                        {
-                            'event': 'close',
-                            'target': 'closed',
-                            'action': 'close_action',
-                        }
-                    ],
-                },
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'closed',
+        'states': [
+            {
+                'name': 'closed',
+                'transitions': [
+                    {
+                        'event': 'open',
+                        'target': 'open',
+                        'action': 'open_action',
+                    }
+                ],
+            },
+            {
+                'name': 'open',
+                'transitions': [
+                    {
+                        'event': 'close',
+                        'target': 'closed',
+                        'action': 'close_action',
+                    }
+                ],
+            },
+        ],
+    }
 
     def open_action(self, when, where):
         self.when = when

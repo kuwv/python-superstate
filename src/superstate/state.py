@@ -7,6 +7,7 @@ from typing import (
     Any,
     Dict,
     Generator,
+    Iterable,
     List,
     Optional,
     Set,
@@ -14,18 +15,17 @@ from typing import (
     Tuple,
 )
 
-from superstate.trigger import Action
 from superstate.exception import InvalidConfig, InvalidTransition
+from superstate.model.python import Action
+from superstate.utils import tuplize
 
-# from superstate.models import NameDescriptor
+# from superstate.model import NameDescriptor
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
+    from superstate.model import Data, DataModel
     from superstate.transition import Transition
-    from superstate.types import (
-        EventActions,
-        InitialType,
-    )
+    from superstate.types import EventActions, InitialType
 
 log = logging.getLogger(__name__)
 
@@ -76,6 +76,8 @@ class State:
     #     '__on_exit',
     #     '__type',
     # ]
+
+    __datamodel: Optional['DataModel']
     # name = cast(str, NameDescriptor('_name'))
     current_state: 'State'
 
@@ -113,9 +115,10 @@ class State:
         *args: Any,
         **kwargs: Any,
     ) -> None:
-        self.__superstate: Optional['CompositeState'] = None
+        self.__parent: Optional['CompositeState'] = None
         self.__name = name
         self.__type = kwargs.get('type', 'atomic')
+        self.__datamodel = kwargs.pop('datamodel', None)
         # self.__ctx: Optional['StateChart'] = None
         # self.validate()
 
@@ -130,10 +133,10 @@ class State:
         return repr(f"{self.__class__.__name__}({self.name})")
 
     def __reversed__(self) -> Generator['State', None, None]:
-        pointer: Optional['State'] = self
-        while pointer:
-            yield pointer
-            pointer = pointer.superstate
+        target: Optional['State'] = self
+        while target:
+            yield target
+            target = target.parent
 
     @classmethod
     def lookup_subclasses(cls, obj: Type['State']) -> Set[Type['State']]:
@@ -146,6 +149,16 @@ class State:
     def name(self) -> 'str':
         """Get name of state."""
         return self.__name
+
+    @property
+    def datamodel(self) -> Optional['DataModel']:
+        """Get datamodel data items."""
+        return self.__datamodel
+
+    @property
+    def data(self) -> Iterable['Data']:
+        """Get datamodel data items."""
+        return self.__datamodel.data if self.__datamodel else ()
 
     @property
     def path(self) -> str:
@@ -182,14 +195,16 @@ class State:
         return self.__type
 
     @property
-    def superstate(self) -> Optional['CompositeState']:
+    def parent(self) -> Optional['CompositeState']:
         """Get parent state."""
-        return self.__superstate
+        return self.__parent
 
-    @superstate.setter
-    def superstate(self, state: 'CompositeState') -> None:
-        if self.__superstate is None:
-            self.__superstate = state
+    @parent.setter
+    def parent(self, state: 'CompositeState') -> None:
+        if self.__parent is None:
+            self.__parent = state
+        else:
+            raise Exception('cannot change parent for state')
 
     # def ctx(self) -> Optional['StateChart']:
     #     """Get current ctx of the statechart."""
@@ -277,8 +292,12 @@ class FinalState(State):
     ) -> Optional[Any]:
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
-        if self.__on_entry is not None:
-            result = Action(ctx)(self.__on_entry)
+        if self.__on_entry:
+            result = tuple(
+                Action(ctx).run(x)  # , *args, **kwargs)
+                # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
+                for x in tuplize(self.__on_entry)
+            )
             log.info(
                 "executed 'on_entry' state change action for %s", self.name
             )
@@ -341,8 +360,12 @@ class AtomicState(State):
         self, ctx: 'StateChart', enable_triggers: bool = False
     ) -> Optional[Any]:
         self._process_transient_state(ctx)
-        if self.__on_entry is not None:
-            result = Action(ctx)(self.__on_entry)
+        if self.__on_entry:
+            result = tuple(
+                Action(ctx).run(x)  # , *args, **kwargs)
+                # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
+                for x in tuplize(self.__on_entry)
+            )
             log.info(
                 "executed 'on_entry' state change action for %s", self.name
             )
@@ -350,8 +373,12 @@ class AtomicState(State):
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
-        if self.__on_exit is not None:
-            result = Action(ctx)(self.__on_exit)
+        if self.__on_exit:
+            result = tuple(
+                Action(ctx).run(x)  # , *args, **kwargs)
+                # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
+                for x in tuplize(self.__on_exit)
+            )
             log.info(
                 "executed 'on_exit' state change action for %s", self.name
             )
@@ -414,7 +441,7 @@ class CompoundState(CompositeState):
         # self.__state = self
         self.__states = {}
         for state in kwargs.pop('states', []):
-            state.superstate = self
+            state.parent = self
             self.__states[state.name] = state
         self.initial = kwargs.pop('initial')
         super().__init__(name, *args, **kwargs)
@@ -445,7 +472,7 @@ class CompoundState(CompositeState):
 
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
-        state.superstate = self
+        state.parent = self
         self.__states[state.name] = state
 
     def run_on_entry(
@@ -498,7 +525,7 @@ class ParallelState(CompositeState):
         """Initialize compound state."""
         self.__states = {}
         for x in kwargs.pop('states', []):
-            x.superstate = self
+            x.parent = self
             self.__states[x.name] = x
         super().__init__(name, *args, **kwargs)
 
@@ -509,7 +536,7 @@ class ParallelState(CompositeState):
 
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
-        state.superstate = self
+        state.parent = self
         self.__states[state.name] = state
 
     def is_active(self, name: str) -> bool:

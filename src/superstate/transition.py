@@ -3,8 +3,9 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-# from superstate.models import NameDescriptor
-from superstate.trigger import Action, Guard
+# from superstate.model import NameDescriptor
+from superstate.model.python import Action, Guard
+from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
@@ -30,13 +31,14 @@ class Transition:
     # event = cast(str, NameDescriptor())
     # target = cast(str, NameDescriptor())
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         event: str,
         target: str,  # XXX target can be self-transition
-        action: Optional['EventActions'] = None,
-        cond: Optional['GuardConditions'] = None,
-        # kind: str = 'internal',
+        action: Optional['EventActions'] = None,  # TODO: switch to splat
+        cond: Optional['GuardConditions'] = None,  # XXX: should default True
+        kind: str = 'internal',
+        # **kwargs: Any,
     ) -> None:
         """Transition from one state to another."""
         # https://www.w3.org/TR/scxml/#events
@@ -44,7 +46,11 @@ class Transition:
         self.target = target
         self.action = action
         self.cond = cond
-        # self.kind = kind
+        self.type = kind
+        self.actions: Optional['EventActions'] = None
+
+    def __repr__(self) -> str:
+        return repr(f"Transition(event={self.event}, target={self.target})")
 
     def __call__(
         self, ctx: 'StateChart', *args: Any, **kwargs: Any
@@ -63,13 +69,19 @@ class Transition:
         result = None
         if self.action:
             log.info("executed action event for %r", self.event)
-            result = Action(ctx)(self.action, *args, **kwargs)
+            ActionModel = (
+                ctx.datamodel.script
+                if ctx.datamodel and ctx.datamodel.script
+                else Action
+            )
+            result = tuple(
+                ActionModel(ctx).run(x, *args, **kwargs)
+                # ctx.datamodel.script(ctx).run(x, *args, **kwargs)
+                for x in tuplize(self.action)
+            )
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
         return result
-
-    def __repr__(self) -> str:
-        return repr(f"Transition(event={self.event}, target={self.target})")
 
     def callback(self) -> Callable:
         """Provide callback from parent state when transition is called."""
@@ -84,4 +96,10 @@ class Transition:
 
     def evaluate(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
         """Evaluate guards of transition."""
-        return Guard(ctx)(self.cond, *args, **kwargs) if self.cond else True
+        result = True
+        if self.cond:
+            for condition in tuplize(self.cond):
+                result = Guard(ctx).check(condition, *args, **kwargs)
+                if result is False:
+                    break
+        return result

@@ -1,6 +1,7 @@
-"""Provide superstate core statechart capability."""
+"""Provide parent core statechart capability."""
 
 import logging
+import os
 from copy import deepcopy
 from itertools import zip_longest
 from typing import (
@@ -12,22 +13,28 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    cast,
 )
+from uuid import UUID
 
+from superstate import config, construct
 from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
     GuardNotSatisfied,
 )
+from superstate.model import Null
 from superstate.state import (
     AtomicState,
     CompositeState,
     # CompoundState,
     ParallelState,
 )
+from superstate.types import Binding
 
 if TYPE_CHECKING:
+    from superstate.model import DataModel
     from superstate.state import State
     from superstate.transition import Transition
 
@@ -37,7 +44,11 @@ log = logging.getLogger(__name__)
 class MetaStateChart(type):
     """Instantiate statecharts from class metadata."""
 
+    _name: str
+    _initial: Union[Callable, 'State', str]
+    _datamodel: str
     _root: 'CompositeState'
+    _binding: str = cast(str, Binding('early', 'late'))
 
     def __new__(
         cls,
@@ -45,22 +56,48 @@ class MetaStateChart(type):
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
     ) -> 'MetaStateChart':
-        obj = super().__new__(cls, name, bases, attrs)
-        machine = (
-            attrs.pop('__superstate__') if '__superstate__' in attrs else None
+        name = attrs.pop('__name__', name.lower())
+        initial = attrs.pop('__initial__', None)
+        binding = attrs.pop('__binding__', config.DEFAULT_BINDING)
+        # [early, late]
+        # if binding != construct.DEFAULT_BINDING:
+        #     construct.DEFAULT_BINDING = binding
+        datamodel = attrs.pop('__datamodel__', config.DEFAULT_DATAMODEL)
+        if datamodel != construct.DEFAULT_DATAMODEL:
+            construct.DEFAULT_DATAMODEL = datamodel
+        state = (
+            construct.state(attrs.pop('__state__'))
+            if '__state__' in attrs
+            else None
         )
-        if machine:
-            obj._root = machine
+        obj = super().__new__(cls, name, bases, attrs)
+        obj._name = name
+        obj._initial = initial
+        obj._binding = binding
+        cls._datamodel = datamodel
+        if state:
+            obj._root = state  # type: ignore
         return obj
 
 
 class StateChart(metaclass=MetaStateChart):
     """Represent statechart capabilities."""
 
-    # __slots__ = ['__root', '__state', '__superstate', '__dict__', 'initial']
+    # __slots__ = ['__root', '__state', '__parent', '__dict__', 'initial']
     __root: 'CompositeState'
     __state: 'State'
-    __superstate: 'CompositeState'
+    __parent: 'CompositeState'
+    _initial: Union[Callable, 'State', str]
+
+    # # System Variables
+    # _name: str
+    # _event: Event
+    # _sessionid: str
+    # _ioprocessors: Iterable[IOProcessor]
+    # _x: Optional['DataModel'] = None
+
+    # TODO: support crud operations through mixin and __new__
+    # TODO: crud taxonomy='dynamic' or mutable Optional[bool]
 
     def __init__(
         self,
@@ -78,21 +115,24 @@ class StateChart(metaclass=MetaStateChart):
                 log.setLevel(kwargs['logging_level'].upper())
         log.info('initializing statechart')
 
+        self._sessionid = UUID(
+            bytes=os.urandom(16), version=4  # pylint: disable=no-member
+        )
+
         if hasattr(self.__class__, '_root'):
             self.__root = deepcopy(self.__class__._root)
-        elif 'superstate' in kwargs:
-            self.__root = deepcopy(kwargs['superstate'])
+        elif 'parent' in kwargs:
+            self.__root = deepcopy(kwargs['parent'])
         else:
-            raise InvalidConfig(
-                'attempted initialization with empty superstate'
-            )
+            raise InvalidConfig('attempted initialization with empty parent')
         self.__state = self.__root
 
         # initial setup
-        self.__initial = kwargs.get(
-            'initial',
-            self.root.initial if hasattr(self.root, 'initial') else None,
-        )
+        if not self._initial:
+            self._initial = kwargs.get(
+                'initial',
+                self.root.initial if hasattr(self.root, 'initial') else None,
+            )
         self.state._process_transient_state(self)  # type: ignore
         if self.root == self.state:
             initial = (
@@ -100,15 +140,16 @@ class StateChart(metaclass=MetaStateChart):
             )
             if initial:
                 self.__state = self.get_state(initial)
-            else:
+            elif not isinstance(self.__root, ParallelState):
                 raise InvalidConfig(
                     'an initial state must exist for statechart'
                 )
         log.info('loaded states and transitions')
 
-        # self.superstate.run_on_entry(self)
+        # self.parent.run_on_entry(self)
         self.state.run_on_entry(self)
         log.info('statechart initialization complete')
+        self._root = None
 
     def __getattr__(self, name: str) -> Any:
         # do not attempt to resolve missing dunders
@@ -146,16 +187,21 @@ class StateChart(metaclass=MetaStateChart):
                 result = self.trigger(name)
                 return result
 
-        # retrieve substate by name
+        # retrieve child by name
         for key in list(self.states):
             if key == name:
-                return self.superstate.states[name]
+                return self.parent.states[name]
         raise AttributeError
 
     @property
+    def datamodel(self) -> 'DataModel':
+        """Return the active datamodel type."""
+        return self.root.datamodel if self.root.datamodel else Null()
+
+    @property
     def initial(self) -> Union[Callable, 'State', str]:
-        """Return initial state of current superstate."""
-        return self.__initial
+        """Return initial state of current parent."""
+        return self._initial
 
     @property
     def root(self) -> 'CompositeState':
@@ -163,9 +209,9 @@ class StateChart(metaclass=MetaStateChart):
         return self.__root
 
     @property
-    def superstate(self) -> 'CompositeState':
-        """Return superstate."""
-        return self.state.superstate or self.root
+    def parent(self) -> 'CompositeState':
+        """Return parent."""
+        return self.state.parent or self.root
 
     @property
     def state(self) -> 'State':
@@ -175,7 +221,7 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def states(self) -> Tuple['State', ...]:
         """Return list of states."""
-        return tuple(self.superstate.states.values())
+        return tuple(self.parent.states.values())
 
     @property
     def active(self) -> Tuple['State', ...]:
@@ -243,7 +289,7 @@ class StateChart(metaclass=MetaStateChart):
                         raise Exception(f"path not found: {statepath}")
                 except Exception as err:
                     log.error(err)
-                    raise KeyError('superstate is undefined') from err
+                    raise KeyError('parent is undefined') from err
         # if type(self.state) not in [AtomicState, ParallelState]:
         #     # TODO: need to transition from CompoundState to AtomicState
         #     print('state transition not complete')
@@ -293,16 +339,14 @@ class StateChart(metaclass=MetaStateChart):
     def add_state(
         self, state: 'State', statepath: Optional[str] = None
     ) -> None:
-        """Add state to either superstate or target state."""
-        superstate = (
-            self.get_state(statepath) if statepath else self.superstate
-        )
-        if isinstance(superstate, CompositeState):
-            superstate.add_state(state)
+        """Add state to either parent or target state."""
+        parent = self.get_state(statepath) if statepath else self.parent
+        if isinstance(parent, CompositeState):
+            parent.add_state(state)
             log.info('added state %s', state.name)
         else:
             raise InvalidState(
-                f"cannot add state to non-composite state {superstate.name}"
+                f"cannot add state to non-composite state {parent.name}"
             )
 
     @property
@@ -317,8 +361,8 @@ class StateChart(metaclass=MetaStateChart):
     def add_transition(
         self, transition: 'Transition', statepath: Optional[str] = None
     ) -> None:
-        """Add transition to either superstate or target state."""
-        target = self.get_state(statepath) if statepath else self.superstate
+        """Add transition to either parent or target state."""
+        target = self.get_state(statepath) if statepath else self.parent
         if isinstance(target, AtomicState):
             target.add_transition(transition)
             log.info('added transition %s', transition.event)
@@ -337,6 +381,7 @@ class StateChart(metaclass=MetaStateChart):
         self, event: str, /, *args: Any, **kwargs: Any
     ) -> 'Transition':
         """Get transition event from active states."""
+        # TODO: must use datamodel to process transitions
         # child => parent => grandparent
         guarded: List['Transition'] = []
         for current in self.active:
@@ -361,7 +406,6 @@ class StateChart(metaclass=MetaStateChart):
                 #     )
                 return allowed[0]
             guarded += transitions
-        print(guarded)
         if len(guarded) != 0:
             raise GuardNotSatisfied('no transition possible from state')
         raise InvalidTransition(f"transition could not be found: {event}")
