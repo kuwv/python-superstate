@@ -44,11 +44,11 @@ log = logging.getLogger(__name__)
 class MetaStateChart(type):
     """Instantiate statecharts from class metadata."""
 
-    _name: str
-    _initial: Union[Callable, 'State', str]
-    _datamodel: str
+    __name__: str
+    __initial__: Union[Callable, 'State', str]
+    __binding__: str = cast(str, Binding('early', 'late'))
+    __datamodel__: str
     _root: 'CompositeState'
-    _binding: str = cast(str, Binding('early', 'late'))
 
     def __new__(
         cls,
@@ -56,27 +56,34 @@ class MetaStateChart(type):
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
     ) -> 'MetaStateChart':
-        name = attrs.pop('__name__', name.lower())
-        initial = attrs.pop('__initial__', None)
-        binding = attrs.pop('__binding__', config.DEFAULT_BINDING)
-        # [early, late]
+        if '__name__' not in attrs:
+            name = name.lower()
+            attrs['__name__'] = name
+        else:
+            name = attrs.get('__name__', name.lower())
+        initial = attrs.get('__initial__', None)
+
+        binding = attrs.get('__binding__', config.DEFAULT_BINDING)
         # if binding != construct.DEFAULT_BINDING:
         #     construct.DEFAULT_BINDING = binding
-        datamodel = attrs.pop('__datamodel__', config.DEFAULT_DATAMODEL)
+
+        datamodel = attrs.get('__datamodel__', config.DEFAULT_DATAMODEL)
         if datamodel != construct.DEFAULT_DATAMODEL:
             construct.DEFAULT_DATAMODEL = datamodel
-        state = (
+
+        root = (
             construct.state(attrs.pop('__state__'))
             if '__state__' in attrs
             else None
         )
+
         obj = super().__new__(cls, name, bases, attrs)
-        obj._name = name
-        obj._initial = initial
-        obj._binding = binding
-        cls._datamodel = datamodel
-        if state:
-            obj._root = state  # type: ignore
+        obj.__name__ = name
+        obj.__initial__ = initial
+        obj.__binding__ = binding
+        obj.__datamodel__ = datamodel
+        if root:
+            obj._root = root  # type: ignore
         return obj
 
 
@@ -93,7 +100,7 @@ class StateChart(metaclass=MetaStateChart):
     # _name: str
     # _event: Event
     # _sessionid: str
-    # _ioprocessors: Iterable[IOProcessor]
+    # _ioprocessors: Sequence[IOProcessor]
     # _x: Optional['DataModel'] = None
 
     # TODO: support crud operations through mixin and __new__
@@ -128,11 +135,11 @@ class StateChart(metaclass=MetaStateChart):
         self.__state = self.__root
 
         # initial setup
-        if not self._initial:
-            self._initial = kwargs.get(
-                'initial',
-                self.root.initial if hasattr(self.root, 'initial') else None,
-            )
+        # if not self.__initial__:
+        self._initial = kwargs.get(
+            'initial',
+            self.root.initial if hasattr(self.root, 'initial') else None,
+        )
         self.state._process_transient_state(self)  # type: ignore
         if self.root == self.state:
             initial = (
@@ -268,7 +275,6 @@ class StateChart(metaclass=MetaStateChart):
             self.state.run_on_entry(self)
         else:
             subpaths = relpath.split('.')
-            size = len(subpaths) - 1
             for index, subpath in enumerate(subpaths):
                 try:
                     if subpath == '':
@@ -282,9 +288,7 @@ class StateChart(metaclass=MetaStateChart):
                     ):
                         state = self.state.states[subpath]
                         self.__state = state
-                        state.run_on_entry(
-                            self, enable_triggers=(index == size)
-                        )
+                        state.run_on_entry(self)
                     else:
                         raise Exception(f"path not found: {statepath}")
                 except Exception as err:

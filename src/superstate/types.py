@@ -2,20 +2,24 @@
 
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
     Optional,
+    Sequence,
     Type,
     Union,
 )
 
 from superstate.exception import InvalidConfig
 
+if TYPE_CHECKING:
+    from superstate.machine import StateChart
+
 EventAction = Union[Callable, str]
-EventActions = Union[EventAction, Iterable[EventAction]]
+EventActions = Union[EventAction, Sequence[EventAction]]
 GuardCondition = Union[Callable, str]
-GuardConditions = Union[GuardCondition, Iterable[GuardCondition]]
+GuardConditions = Union[GuardCondition, Sequence[GuardCondition]]
 InitialType = Union[Callable, str]
 
 
@@ -80,14 +84,32 @@ class NameDescriptor:
 class ActionBase(ABC):
     """Base class for actions."""
 
+    def __init__(self, ctx: 'StateChart') -> None:
+        """Initialize for MyPy."""
+        self.__ctx = ctx
+
+    @property
+    def ctx(self) -> 'StateChart':
+        """Return instance of StateChart."""
+        return self.__ctx
+
     @abstractmethod
-    def run(self, fn: 'EventAction', *args: Any, **kwargs: Any) -> Any:
+    def run(self, cmd: 'EventAction', *args: Any, **kwargs: Any) -> Any:
         """Run action."""
 
 
 class GuardBase(ABC):
     """Base class for conditions."""
 
+    def __init__(self, ctx: 'StateChart') -> None:
+        """Initialize for MyPy."""
+        self.__ctx = ctx
+
+    @property
+    def ctx(self) -> 'StateChart':
+        """Return instance of StateChart."""
+        return self.__ctx
+
     @abstractmethod
-    def check(self, cond: 'GuardCondition', *args: Any, **kwargs: Any) -> Any:
+    def check(self, cond: 'GuardCondition', *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition."""

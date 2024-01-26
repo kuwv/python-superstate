@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 # from superstate.model import NameDescriptor
-from superstate.model.python import Action, Guard
+from superstate.model.python import Guard
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
@@ -68,17 +68,17 @@ class Transition:
             target = self.target
         result = None
         if self.action:
-            log.info("executed action event for %r", self.event)
             ActionModel = (
                 ctx.datamodel.script
                 if ctx.datamodel and ctx.datamodel.script
-                else Action
+                else None
             )
-            result = tuple(
-                ActionModel(ctx).run(x, *args, **kwargs)
-                # ctx.datamodel.script(ctx).run(x, *args, **kwargs)
-                for x in tuplize(self.action)
-            )
+            if ActionModel:
+                log.info("executed action event for %r", self.event)
+                result = tuple(
+                    ActionModel(ctx).run(x, *args, **kwargs)
+                    for x in tuplize(self.action)
+                )
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
         return result

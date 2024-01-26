@@ -2,7 +2,11 @@
 
 from typing import TYPE_CHECKING, Any, List, Union
 
-from superstate.config import DEFAULT_DATAMODEL, ENABLED_DATAMODELS
+from superstate.config import (
+    # DEFAULT_BINDING,
+    DEFAULT_DATAMODEL,
+    ENABLED_DATAMODELS,
+)
 from superstate.exception import (
     InvalidConfig,
     # InvalidState,
@@ -89,11 +93,7 @@ def state(
             name=settings.get('name', 'root'),
             initial=settings.get('initial'),
             type=settings.get('type'),
-            datamodel=(
-                datamodel(settings['datamodel'])
-                if 'datamodel' in settings
-                else None
-            ),
+            datamodel=datamodel(settings.get('datamodel', {})),
             states=(
                 states(*settings['states']) if 'states' in settings else []
             ),

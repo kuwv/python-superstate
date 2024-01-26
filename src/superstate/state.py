@@ -7,16 +7,15 @@ from typing import (
     Any,
     Dict,
     Generator,
-    Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Type,
     Tuple,
 )
 
 from superstate.exception import InvalidConfig, InvalidTransition
-from superstate.model.python import Action
 from superstate.utils import tuplize
 
 # from superstate.model import NameDescriptor
@@ -156,7 +155,7 @@ class State:
         return self.__datamodel
 
     @property
-    def data(self) -> Iterable['Data']:
+    def data(self) -> Sequence['Data']:
         """Get datamodel data items."""
         return self.__datamodel.data if self.__datamodel else ()
 
@@ -216,9 +215,7 @@ class State:
     #     if not self.ctx:
     #         self.__ctx = ctx
 
-    def run_on_entry(
-        self, ctx: 'StateChart', enable_triggers: bool = False
-    ) -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-entry tasks."""
         # raise NotImplementedError
 
@@ -230,9 +227,7 @@ class State:
 class PseudoState(State):
     """Provide state for statechart."""
 
-    def run_on_entry(
-        self, ctx: 'StateChart', enable_triggers: bool = False
-    ) -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-entry tasks."""
         raise InvalidTransition('cannot transition to pseudostate')
 
@@ -287,21 +282,24 @@ class FinalState(State):
         super().__init__(name, *args, **kwargs)
         self.__on_entry = kwargs.get('on_entry')
 
-    def run_on_entry(
-        self, ctx: 'StateChart', enable_triggers: bool = False
-    ) -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
         if self.__on_entry:
-            result = tuple(
-                Action(ctx).run(x)  # , *args, **kwargs)
-                # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
-                for x in tuplize(self.__on_entry)
+            ActionModel = (
+                ctx.datamodel.script
+                if ctx.datamodel and ctx.datamodel.script
+                else None
             )
-            log.info(
-                "executed 'on_entry' state change action for %s", self.name
-            )
-            return result
+            if ActionModel:
+                result = tuple(
+                    ActionModel(ctx).run(x)  # , *args, **kwargs)
+                    for x in tuplize(self.__on_entry)
+                )
+                log.info(
+                    "executed 'on_entry' state change action for %s", self.name
+                )
+                return result
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
@@ -356,33 +354,42 @@ class AtomicState(State):
             )
         )
 
-    def run_on_entry(
-        self, ctx: 'StateChart', enable_triggers: bool = False
-    ) -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         self._process_transient_state(ctx)
         if self.__on_entry:
-            result = tuple(
-                Action(ctx).run(x)  # , *args, **kwargs)
-                # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
-                for x in tuplize(self.__on_entry)
+            ActionModel = (
+                ctx.datamodel.script
+                if ctx.datamodel and ctx.datamodel.script
+                else None
             )
-            log.info(
-                "executed 'on_entry' state change action for %s", self.name
-            )
-            return result
+            if ActionModel:
+                result = tuple(
+                    ActionModel(ctx).run(x)  # , *args, **kwargs)
+                    # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
+                    for x in tuplize(self.__on_entry)
+                )
+                log.info(
+                    "executed 'on_entry' state change action for %s", self.name
+                )
+                return result
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
-            result = tuple(
-                Action(ctx).run(x)  # , *args, **kwargs)
-                # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
-                for x in tuplize(self.__on_exit)
+            ActionModel = (
+                ctx.datamodel.script
+                if ctx.datamodel and ctx.datamodel.script
+                else None
             )
-            log.info(
-                "executed 'on_exit' state change action for %s", self.name
-            )
-            return result
+            if ActionModel:
+                result = tuple(
+                    ActionModel(ctx).run(x)  # , *args, **kwargs)
+                    for x in tuplize(self.__on_exit)
+                )
+                log.info(
+                    "executed 'on_exit' state change action for %s", self.name
+                )
+                return result
         return None
 
 
@@ -475,9 +482,7 @@ class CompoundState(CompositeState):
         state.parent = self
         self.__states[state.name] = state
 
-    def run_on_entry(
-        self, ctx: 'StateChart', enable_triggers: bool = True
-    ) -> Optional[Tuple[Any, ...]]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Tuple[Any, ...]]:
         # if next(
         #     (x for x in self.states if isinstance(x, HistoryState)), False
         # ):
@@ -485,14 +490,14 @@ class CompoundState(CompositeState):
         # XXX: initial can be None
         if not self.initial:
             raise InvalidConfig('an initial state must exist for statechart')
-        if self.initial and enable_triggers:
+        if self.initial:
             initial = (
                 self.initial(ctx) if callable(self.initial) else self.initial
             )
-            if initial and enable_triggers:
+            if initial:
                 ctx.change_state(initial)
         results: List[Any] = []
-        results += filter(None, [super().run_on_entry(ctx, enable_triggers)])
+        results += filter(None, [super().run_on_entry(ctx)])
         if hasattr(ctx.state, 'initial') and ctx.state.initial:
             ctx.change_state(ctx.state.initial)
         return tuple(results) if results else None
@@ -546,7 +551,7 @@ class ParallelState(CompositeState):
         return False
 
     def run_on_entry(
-        self, ctx: 'StateChart', enable_triggers: bool = False
+        self, ctx: 'StateChart'
     ) -> Optional[Any]:
         results = []
         results.append(super().run_on_entry(ctx))

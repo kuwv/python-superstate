@@ -2,8 +2,8 @@
 
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Type
-from urllib import request
+from typing import TYPE_CHECKING, Any, Sequence, Optional, Type
+from urllib.request import urlopen
 
 from superstate.model.common import In
 from superstate.model.python import Action, Guard
@@ -36,9 +36,9 @@ class Data:
                 'data contains mutually exclusive src, expr, or value attrs'
             )
         if src:
-            with request.urlopen(src) as rsp:
+            with urlopen(src) as rsp:
                 self.value = rsp.read()
-        elif expr:
+        if expr:
             # TODO: use action or script specified in datamodel
             self.value = expr
 
@@ -52,7 +52,7 @@ class Data:
 class DoneData:
     """Data model providing state data."""
 
-    param: Iterable[Data]
+    param: Sequence[Data]
     content: Optional[Any] = None
 
 
@@ -89,8 +89,7 @@ class Param:
 class DataModel(ABC):
     """Instantiate state types from class metadata."""
 
-    data: Iterable['Data'] = field(default_factory=list)
-    binding: str = 'early'
+    data: Sequence['Data'] = field(default_factory=list)
 
     @property
     def boolean(self) -> Type['GuardBase']:

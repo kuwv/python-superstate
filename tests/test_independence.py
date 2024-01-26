@@ -4,6 +4,7 @@ from superstate import StateChart
 
 
 class MyMachine(StateChart):
+    __datamodel__ = 'python'
     __state__ = {
         'initial': 'off',
         'states': [

@@ -2,6 +2,7 @@ from superstate import StateChart
 
 
 class Door(StateChart):
+    __datamodel__ = 'python'
     __state__ = {
         'initial': 'closed',
         'states': [
