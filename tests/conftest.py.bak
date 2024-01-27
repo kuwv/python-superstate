@@ -4,7 +4,7 @@ from superstate import StateChart, state
 
 
 class SwitchMachine(StateChart):
-    __superstate__ = state(
+    __state__ = state(
         {
             'initial': 'off',
             'states': [
@@ -41,7 +41,7 @@ def switch_machine():
 
 
 class FallingMachine(StateChart):
-    __superstate__ = state(
+    __state__ = state(
         {
             'initial': 'looking',
             'states': [

@@ -2,7 +2,7 @@ from superstate import StateChart, State, Transition, state
 
 
 class Door(StateChart):
-    __superstate__ = state(
+    __state__ = state(
         {
             'initial': 'closed',
             'states': [

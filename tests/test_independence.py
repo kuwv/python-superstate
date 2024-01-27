@@ -1,26 +1,25 @@
 """Test state independence."""
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class MyMachine(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'off',
-            'states': [
-                {
-                    'name': 'off',
-                    'transitions': [{'event': 'toggle', 'target': 'on'}],
-                    'on_entry': 'inc_off',
-                },
-                {
-                    'name': 'on',
-                    'transitions': [{'event': 'toggle', 'target': 'off'}],
-                    'on_entry': 'inc_on',
-                },
-            ],
-        }
-    )
+    __datamodel__ = 'python'
+    __state__ = {
+        'initial': 'off',
+        'states': [
+            {
+                'name': 'off',
+                'transitions': [{'event': 'toggle', 'target': 'on'}],
+                'on_entry': 'inc_off',
+            },
+            {
+                'name': 'on',
+                'transitions': [{'event': 'toggle', 'target': 'off'}],
+                'on_entry': 'inc_on',
+            },
+        ],
+    }
 
     def __init__(self):
         self.off_count = 0

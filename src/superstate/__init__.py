@@ -21,8 +21,10 @@
 """Robust statechart for configurable automation rules."""
 
 import logging
-from typing import Any, Dict, List, Union
 
+# from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
+
+from superstate import config
 from superstate.exception import (
     InvalidConfig,
     InvalidState,
@@ -30,6 +32,7 @@ from superstate.exception import (
     GuardNotSatisfied,
 )
 from superstate.machine import StateChart
+from superstate.model import Data, DataModel, Null, Python
 from superstate.state import (
     AtomicState,
     CompositeState,
@@ -68,63 +71,11 @@ __all__ = (
     'InvalidTransition',
     'GuardNotSatisfied',
     # helper functions
-    'states',
-    'state',
-    'transitions',
-    'transition',
+    # 'states',
+    # 'state',
+    # 'transitions',
+    # 'transition',
 )
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
-
-
-def transition(config: Union['Transition', dict]) -> 'Transition':
-    """Create transition from configuration."""
-    if isinstance(config, Transition):
-        return config
-    if isinstance(config, dict):
-        return Transition(
-            event=config.get('event', ''),
-            target=config['target'],  # XXX: should allow optional
-            action=config.get('action'),
-            cond=config.get('cond'),
-            # kind=config.get('type', 'internal'),
-        )
-    raise InvalidConfig('could not find a valid transition configuration')
-
-
-def transitions(*args: Any) -> List['Transition']:
-    """Create transitions from configuration."""
-    return list(map(transition, args))
-
-
-def state(
-    config: Union['State', dict, str]
-) -> Union['CompositeState', 'State']:
-    """Create state from configuration."""
-    if isinstance(config, State):
-        return config
-    if isinstance(config, str):
-        # pylint: disable-next=abstract-class-instantiated
-        return State(config)
-    if isinstance(config, dict):
-        cls = config.pop('factory', State)
-        return cls(
-            name=config.get('name', 'root'),
-            initial=config.get('initial'),
-            type=config.get('type'),
-            states=(states(*config['states']) if 'states' in config else []),
-            transitions=(
-                transitions(*config['transitions'])
-                if 'transitions' in config
-                else []
-            ),
-            on_entry=config.get('on_entry'),
-            on_exit=config.get('on_exit'),
-        )
-    raise InvalidConfig('could not find a valid state configuration')
-
-
-def states(*args: Any) -> List['State']:
-    """Create states from configuration."""
-    return list(map(state, args))

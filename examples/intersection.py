@@ -55,7 +55,7 @@ class StopLight(State):
 class Intersection(StateChart):
     """Provide an object representing an intersection."""
 
-    __superstate__ = State(
+    __state__ = State(
         name='intersection',
         type='parallel',
         states=[
@@ -65,9 +65,7 @@ class Intersection(StateChart):
     )
 
     def __change_light(self, active: str, inactive: str) -> None:
-        self.trigger(
-            'turn_yellow', statepath=f"intersection.{active}.green"
-        )
+        self.trigger('turn_yellow', statepath=f"intersection.{active}.green")
         self.trigger('turn_red', statepath=f"intersection.{active}.yellow")
         self.trigger('turn_green', statepath=f"intersection.{inactive}.red")
 
@@ -92,7 +90,7 @@ class Intersection(StateChart):
 if __name__ == '__main__':
     intersection = Intersection(logging_enabled=True, logging_level='debug')
 
-    assert intersection.north_south.green == 'green'
+    assert intersection.north_south.state == 'green'
 
     for x in range(1, 5):
         intersection.change_light()

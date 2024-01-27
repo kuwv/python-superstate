@@ -1,63 +1,61 @@
 """Demonstrate auto-transition."""
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class Machine(StateChart):
     """Example machine that will auto-transition on entry."""
 
-    __superstate__ = state(
-        {
-            'name': 'engine',
-            'initial': 'stopped',
-            'states': [
-                {
-                    'name': 'started',
-                    'transitions': [
-                        {'event': 'stop', 'target': 'stopped'},
-                    ],
-                    'on_entry': lambda: print('started'),
-                },
-                {
-                    'name': 'stopped',
-                    'transitions': [
-                        {'event': 'start', 'target': 'started'},
-                        {'event': 'fix', 'target': 'maintenance.fixing'},
-                    ],
-                    'on_entry': lambda: print('stopped'),
-                },
-                {
-                    'name': 'maintenance',
-                    'initial': 'checking',
-                    'states': [
-                        {
-                            'name': 'checking',
-                            'on_entry': lambda: print('checking'),
-                        },
-                        {
-                            'name': 'fixing',
-                            'transitions': [
-                                {
-                                    'event': 'check',
-                                    'target': 'maintenance.checking',
-                                }
-                            ],
-                            'on_entry': lambda: print('take apart'),
-                        },
-                    ],
-                    'on_entry': lambda: print('fixing'),
-                },
-            ],
-            'transitions': [
-                {
-                    'target': 'started',
-                    'cond': (
-                        lambda ctx: hasattr(ctx, 'autostart') and ctx.autostart
-                    ),
-                },
-            ],
-        }
-    )
+    __state__ = {
+        'name': 'engine',
+        'initial': 'stopped',
+        'states': [
+            {
+                'name': 'started',
+                'transitions': [
+                    {'event': 'stop', 'target': 'stopped'},
+                ],
+                'on_entry': lambda: print('started'),
+            },
+            {
+                'name': 'stopped',
+                'transitions': [
+                    {'event': 'start', 'target': 'started'},
+                    {'event': 'fix', 'target': 'maintenance.fixing'},
+                ],
+                'on_entry': lambda: print('stopped'),
+            },
+            {
+                'name': 'maintenance',
+                'initial': 'checking',
+                'states': [
+                    {
+                        'name': 'checking',
+                        'on_entry': lambda: print('checking'),
+                    },
+                    {
+                        'name': 'fixing',
+                        'transitions': [
+                            {
+                                'event': 'check',
+                                'target': 'maintenance.checking',
+                            }
+                        ],
+                        'on_entry': lambda: print('take apart'),
+                    },
+                ],
+                'on_entry': lambda: print('fixing'),
+            },
+        ],
+        'transitions': [
+            {
+                'target': 'started',
+                'cond': (
+                    lambda ctx: hasattr(ctx, 'autostart') and ctx.autostart
+                ),
+            },
+        ],
+    }
     autostart: bool
 
 

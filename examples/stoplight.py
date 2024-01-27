@@ -8,7 +8,7 @@ from superstate import StateChart, state
 class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    __superstate__ = state(
+    __state__ = state(
         {
             'name': 'stoplight',
             'initial': 'red',

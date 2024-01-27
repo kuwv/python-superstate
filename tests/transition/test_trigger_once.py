@@ -1,43 +1,42 @@
 import pytest
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class LoanRequest(StateChart):
-    __superstate__ = state(
-        {
-            'initial': 'pending',
-            'states': [
-                {
-                    'name': 'pending',
-                    'transitions': [
-                        {
-                            'event': 'analyze',
-                            'target': 'analyzing',
-                            'action': 'input_data',
-                        }
-                    ],
-                },
-                {
-                    'name': 'analyzing',
-                    'transitions': [
-                        {
-                            'event': 'forward_analysis_result',
-                            'cond': 'was_loan_accepted',
-                            'target': 'accepted',
-                        },
-                        {
-                            'event': 'forward_analysis_result',
-                            'cond': 'was_loan_refused',
-                            'target': 'refused',
-                        },
-                    ],
-                },
-                {'name': 'refused'},
-                {'name': 'accepted'},
-            ],
-        }
-    )
+    __datamodel__ = 'python'
+    __state__ = {
+        'initial': 'pending',
+        'states': [
+            {
+                'name': 'pending',
+                'transitions': [
+                    {
+                        'event': 'analyze',
+                        'target': 'analyzing',
+                        'action': 'input_data',
+                    }
+                ],
+            },
+            {
+                'name': 'analyzing',
+                'transitions': [
+                    {
+                        'event': 'forward_analysis_result',
+                        'cond': 'was_loan_accepted',
+                        'target': 'accepted',
+                    },
+                    {
+                        'event': 'forward_analysis_result',
+                        'cond': 'was_loan_refused',
+                        'target': 'refused',
+                    },
+                ],
+            },
+            {'name': 'refused'},
+            {'name': 'accepted'},
+        ],
+    }
 
     def input_data(self, accepted=True):
         self.accepted = accepted
