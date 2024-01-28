@@ -1,59 +1,26 @@
 """Test state independence."""
 
-from superstate import StateChart
+
+def test_two_switchs_do_not_share_transitions(switches) -> None:
+    switch_a, switch_b = switches
+
+    assert switch_a.state == 'off'
+    assert switch_b.state == 'off'
+
+    switch_a.trigger('toggle')
+
+    assert switch_a.state == 'on'
+    assert switch_b.state == 'off'
 
 
-class MyMachine(StateChart):
-    __datamodel__ = 'python'
-    __state__ = {
-        'initial': 'off',
-        'states': [
-            {
-                'name': 'off',
-                'transitions': [{'event': 'toggle', 'target': 'on'}],
-                'on_entry': 'inc_off',
-            },
-            {
-                'name': 'on',
-                'transitions': [{'event': 'toggle', 'target': 'off'}],
-                'on_entry': 'inc_on',
-            },
-        ],
-    }
+def test_two_switchs_do_not_share_actions(switches) -> None:
+    """Test the indepedence between two statecharts."""
+    switch_a, switch_b = switches
 
-    def __init__(self):
-        self.off_count = 0
-        self.on_count = 0
-        super().__init__()
+    assert switch_a.on_count == 0
+    assert switch_b.on_count == 0
 
-    def inc_off(self):
-        self.off_count += 1
+    switch_a.trigger('toggle')
 
-    def inc_on(self):
-        self.on_count += 1
-
-
-def test_two_machines_do_not_share_transitions():
-    machine_a = MyMachine()
-    machine_b = MyMachine()
-
-    assert machine_a.state == 'off'
-    assert machine_b.state == 'off'
-
-    machine_a.trigger('toggle')
-
-    assert machine_a.state == 'on'
-    assert machine_b.state == 'off'
-
-
-def test_two_machines_do_not_share_actions():
-    machine_a = MyMachine()
-    machine_b = MyMachine()
-
-    assert machine_a.on_count == 0
-    assert machine_b.on_count == 0
-
-    machine_a.trigger('toggle')
-
-    assert machine_a.on_count == 1
-    assert machine_b.on_count == 0
+    assert switch_a.on_count == 1
+    assert switch_b.on_count == 0

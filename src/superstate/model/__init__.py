@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Sequence, Optional, Type
 from urllib.request import urlopen
 
 from superstate.model.common import In
-from superstate.model.python import Action, Guard
+from superstate.model.default import Action, Guard
 
 if TYPE_CHECKING:
     from superstate.types import ActionBase, GuardBase
@@ -92,8 +92,8 @@ class DataModel(ABC):
     data: Sequence['Data'] = field(default_factory=list)
 
     @property
-    def boolean(self) -> Type['GuardBase']:
-        """Get the configured boolean expression language."""
+    def conditional(self) -> Type['GuardBase']:
+        """Get the configured conditional expression language."""
         return In
 
     # @property
@@ -103,7 +103,7 @@ class DataModel(ABC):
 
     @property
     @abstractmethod
-    def script(self) -> Optional[Type['ActionBase']]:
+    def executor(self) -> Optional[Type['ActionBase']]:
         """Get the configured scripting expression language."""
 
     # TODO: need to handle foreach
@@ -114,7 +114,7 @@ class Null(DataModel):
     """Data model providing state data without any scripting capabilities."""
 
     @property
-    def script(self) -> Optional[Type['ActionBase']]:
+    def executor(self) -> Optional[Type['ActionBase']]:
         """Get the configured scripting expression language."""
         return None
 
@@ -125,15 +125,26 @@ class Null(DataModel):
 
 
 @dataclass
-class Python(DataModel):
-    """Data model providing state data."""
+class Default(DataModel):
+    """Default data model providing state data."""
 
     @property
-    def boolean(self) -> Type['GuardBase']:
-        """Get the configured boolean expression language."""
+    def conditional(self) -> Type['GuardBase']:
+        """Get the configured conditional expression language."""
         return Guard
 
     @property
-    def script(self) -> Optional[Type['ActionBase']]:
+    def executor(self) -> Optional[Type['ActionBase']]:
         """Get the configured scripting expression language."""
         return Action
+
+
+@dataclass
+class SystemSettings:
+    """Provide system settings."""
+
+    _name: str
+    _event: 'Event'
+    _sessionid: str
+    # _ioprocessors: Sequence['EventProcessor']
+    _x: Optional['DataModel'] = None

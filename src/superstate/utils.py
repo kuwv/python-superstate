@@ -4,7 +4,7 @@ from typing import Any, Tuple, Union
 
 
 def to_bool(value: Union[bool, int, str]) -> bool:
-    """Convert a string truth statement to boolean."""
+    """Convert a string truth statement to conditional."""
     if isinstance(value, bool):
         return value
     if isinstance(value, str):

@@ -287,8 +287,8 @@ class FinalState(State):
         # completion of the <onentry> elements
         if self.__on_entry:
             ActionModel = (
-                ctx.datamodel.script
-                if ctx.datamodel and ctx.datamodel.script
+                ctx.datamodel.executor
+                if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
             if ActionModel:
@@ -358,14 +358,14 @@ class AtomicState(State):
         self._process_transient_state(ctx)
         if self.__on_entry:
             ActionModel = (
-                ctx.datamodel.script
-                if ctx.datamodel and ctx.datamodel.script
+                ctx.datamodel.executor
+                if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
             if ActionModel:
                 result = tuple(
                     ActionModel(ctx).run(x)  # , *args, **kwargs)
-                    # ctx.datamodel.script(ctx).run(x)  # , *args, **kwargs)
+                    # ctx.datamodel.executor(ctx).run(x)  # , *args, **kwargs)
                     for x in tuplize(self.__on_entry)
                 )
                 log.info(
@@ -377,8 +377,8 @@ class AtomicState(State):
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
             ActionModel = (
-                ctx.datamodel.script
-                if ctx.datamodel and ctx.datamodel.script
+                ctx.datamodel.executor
+                if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
             if ActionModel:
@@ -550,9 +550,7 @@ class ParallelState(CompositeState):
                 return True
         return False
 
-    def run_on_entry(
-        self, ctx: 'StateChart'
-    ) -> Optional[Any]:
+    def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         results = []
         results.append(super().run_on_entry(ctx))
         for state in reversed(self.states.values()):

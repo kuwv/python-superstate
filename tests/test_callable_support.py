@@ -18,7 +18,6 @@ def pre_falling_function() -> None:
 
 
 class JumperGuy(StateChart):
-    __datamodel__ = 'python'
     __state__ = {
         'initial': 'looking',
         'states': [
@@ -66,7 +65,6 @@ def test_every_callback_is_callable() -> None:
 
 def test_deny_state_change_if_guard_callable_returns_false() -> None:
     class Door(StateChart):
-        __datamodel__ = 'python'
         __state__ = {
             'initial': 'closed',
             'states': [

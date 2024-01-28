@@ -4,7 +4,6 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 # from superstate.model import NameDescriptor
-from superstate.model.python import Guard
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
@@ -66,22 +65,23 @@ class Transition:
             )
         else:
             target = self.target
-        result = None
+        results = None
         if self.action:
             ActionModel = (
-                ctx.datamodel.script
-                if ctx.datamodel and ctx.datamodel.script
+                ctx.datamodel.executor
+                if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
             if ActionModel:
                 log.info("executed action event for %r", self.event)
-                result = tuple(
-                    ActionModel(ctx).run(x, *args, **kwargs)
-                    for x in tuplize(self.action)
+                action = ActionModel(ctx)
+                results = tuple(
+                    action.run(command, *args, **kwargs)
+                    for command in tuplize(self.action)
                 )
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
-        return result
+        return results
 
     def callback(self) -> Callable:
         """Provide callback from parent state when transition is called."""
@@ -91,15 +91,22 @@ class Transition:
             ctx.process_transitions(self.event, *args, **kwargs)
 
         event.__name__ = self.event
-        event.__doc__ = f"Transition event: '{self.event}'."
+        event.__doc__ = f"Transition event: '{self.event}'"
         return event
 
     def evaluate(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
         """Evaluate guards of transition."""
-        result = True
+        results = True
         if self.cond:
-            for condition in tuplize(self.cond):
-                result = Guard(ctx).check(condition, *args, **kwargs)
-                if result is False:
-                    break
-        return result
+            GuardModel = (
+                ctx.datamodel.conditional
+                if ctx.datamodel and ctx.datamodel.conditional
+                else None
+            )
+            if GuardModel:
+                guard = GuardModel(ctx)
+                for condition in tuplize(self.cond):
+                    results = guard.check(condition, *args, **kwargs)
+                    if results is False:
+                        break
+        return results

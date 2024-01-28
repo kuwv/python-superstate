@@ -1,31 +1,29 @@
-from superstate import StateChart, State, Transition, state
+from superstate import StateChart, State, Transition
 
 
 class Door(StateChart):
-    __state__ = state(
-        {
-            'initial': 'closed',
-            'states': [
-                State(
-                    'open',
-                    transitions=[
-                        Transition(event='close', target='closed'),
-                        Transition(event='crack', target='broken'),
-                    ],
-                ),
-                State(
-                    'closed',
-                    transitions=[
-                        Transition(event='open', target='open'),
-                        Transition(event='crack', target='broken'),
-                    ],
-                ),
-                State('broken'),
-            ],
-        }
-    )
+    __state__ = {
+        'initial': 'closed',
+        'states': [
+            State(
+                'open',
+                transitions=[
+                    Transition(event='close', target='closed'),
+                    Transition(event='crack', target='broken'),
+                ],
+            ),
+            State(
+                'closed',
+                transitions=[
+                    Transition(event='open', target='open'),
+                    Transition(event='crack', target='broken'),
+                ],
+            ),
+            State('broken'),
+        ],
+    }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.state_changes = []
         super().__init__()
 
@@ -33,7 +31,7 @@ class Door(StateChart):
         self.state_changes.append((source, target))
 
 
-def test_notify_state_changes():
+def test_notify_state_changes() -> None:
     door = Door()
     door.trigger('open')
     door.trigger('close')

@@ -153,6 +153,9 @@ class StateChart(metaclass=MetaStateChart):
                 )
         log.info('loaded states and transitions')
 
+        # if binding == 'early':
+        #
+
         # self.parent.run_on_entry(self)
         self.state.run_on_entry(self)
         log.info('statechart initialization complete')
@@ -226,7 +229,21 @@ class StateChart(metaclass=MetaStateChart):
         return self.__state
 
     @property
+    def children(self) -> Tuple['State', ...]:
+        """Return list of states."""
+        return (
+            tuple(self.__state.states)
+            if hasattr(self.__state, 'states')
+            else ()
+        )
+
+    @property
     def states(self) -> Tuple['State', ...]:
+        """Return list of states."""
+        return tuple(self.parent.states.values())
+
+    @property
+    def siblings(self) -> Tuple['State', ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
