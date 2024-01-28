@@ -32,7 +32,7 @@ from superstate.exception import (
     GuardNotSatisfied,
 )
 from superstate.machine import StateChart
-from superstate.model import Data, DataModel, Null, Python
+from superstate.model import Data, DataModel
 from superstate.state import (
     AtomicState,
     CompositeState,

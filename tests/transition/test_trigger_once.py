@@ -4,7 +4,6 @@ from superstate import StateChart
 
 
 class LoanRequest(StateChart):
-    __datamodel__ = 'python'
     __state__ = {
         'initial': 'pending',
         'states': [
