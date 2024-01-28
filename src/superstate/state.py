@@ -286,14 +286,15 @@ class FinalState(State):
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
         if self.__on_entry:
-            ActionModel = (
+            Executor = (
                 ctx.datamodel.executor
                 if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
-            if ActionModel:
+            if Executor:
+                executor = Executor(ctx)
                 result = tuple(
-                    ActionModel(ctx).run(x)  # , *args, **kwargs)
+                    executor.run(x)  # , *args, **kwargs)
                     for x in tuplize(self.__on_entry)
                 )
                 log.info(
@@ -357,14 +358,15 @@ class AtomicState(State):
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         self._process_transient_state(ctx)
         if self.__on_entry:
-            ActionModel = (
+            Executor = (
                 ctx.datamodel.executor
                 if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
-            if ActionModel:
+            if Executor:
+                executor = Executor(ctx)
                 result = tuple(
-                    ActionModel(ctx).run(x)  # , *args, **kwargs)
+                    executor.run(x)  # , *args, **kwargs)
                     # ctx.datamodel.executor(ctx).run(x)  # , *args, **kwargs)
                     for x in tuplize(self.__on_entry)
                 )
@@ -376,14 +378,15 @@ class AtomicState(State):
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
-            ActionModel = (
+            Executor = (
                 ctx.datamodel.executor
                 if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
-            if ActionModel:
+            if Executor:
+                executor = Executor(ctx)
                 result = tuple(
-                    ActionModel(ctx).run(x)  # , *args, **kwargs)
+                    executor.run(x)  # , *args, **kwargs)
                     for x in tuplize(self.__on_exit)
                 )
                 log.info(
