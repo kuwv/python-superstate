@@ -20,7 +20,7 @@ EventAction = Union[Callable, str]
 EventActions = Union[EventAction, Sequence[EventAction]]
 GuardCondition = Union[Callable, str]
 GuardConditions = Union[GuardCondition, Sequence[GuardCondition]]
-InitialType = Union[Callable, str]
+Initial = Union[Callable, str]
 
 
 class Validator(ABC):
