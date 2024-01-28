@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from superstate.machine import StateChart
     from superstate.model import Data, DataModel
     from superstate.transition import Transition
-    from superstate.types import EventActions, InitialType
+    from superstate.types import EventActions, Initial
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 # class MetaState(type):
 #     """Instantiate state types from class metadata."""
 #
-#     _initial: Optional['InitialType']
+#     _initial: Optional['Initial']
 #     _type: Optional[str]
 #     _states: List['State']
 #     _transitions: List['State']
@@ -236,21 +236,6 @@ class PseudoState(State):
         raise InvalidTransition('cannot transition from pseudostate')
 
 
-class HistoryState(PseudoState):
-    """A pseudostate that remembers transition history of compound states."""
-
-    __history: str
-
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
-        self.__history = kwargs.get('history', 'shallow')
-        super().__init__(name, *args, **kwargs)
-
-    @property
-    def history(self) -> str:
-        """Return previous substate."""
-        return self.__history
-
-
 class ConditionState(PseudoState):
     """A pseudostate that only transits to other states."""
 
@@ -269,6 +254,21 @@ class ConditionState(PseudoState):
     def add_transition(self, transition: 'Transition') -> None:
         """Add transition to this state."""
         self.__transitions.append(transition)
+
+
+class HistoryState(PseudoState):
+    """A pseudostate that remembers transition history of compound states."""
+
+    __history: str
+
+    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+        self.__history = kwargs.get('history', 'shallow')
+        super().__init__(name, *args, **kwargs)
+
+    @property
+    def history(self) -> str:
+        """Return previous substate."""
+        return self.__history
 
 
 class FinalState(State):
@@ -444,7 +444,7 @@ class CompoundState(CompositeState):
     """Provide nested state capabilitiy."""
 
     # __state: 'State'
-    initial: 'InitialType'
+    initial: 'Initial'
     final: 'FinalState'
 
     def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
@@ -493,6 +493,7 @@ class CompoundState(CompositeState):
         # XXX: initial can be None
         if not self.initial:
             raise InvalidConfig('an initial state must exist for statechart')
+        # TODO: deprecate callable initial state
         if self.initial:
             initial = (
                 self.initial(ctx) if callable(self.initial) else self.initial

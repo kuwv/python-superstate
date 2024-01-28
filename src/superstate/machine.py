@@ -4,17 +4,7 @@ import logging
 import os
 from copy import deepcopy
 from itertools import zip_longest
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 from uuid import UUID
 
 from superstate import config, construct
@@ -37,6 +27,7 @@ if TYPE_CHECKING:
     from superstate.model import DataModel
     from superstate.state import State
     from superstate.transition import Transition
+    from superstate.types import Initial
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +36,7 @@ class MetaStateChart(type):
     """Instantiate statecharts from class metadata."""
 
     __name__: str
-    __initial__: Union[Callable, 'State', str]
+    __initial__: 'Initial'
     __binding__: str = cast(str, Binding('early', 'late'))
     __datamodel__: str
     _root: 'CompositeState'
@@ -92,9 +83,8 @@ class StateChart(metaclass=MetaStateChart):
 
     # __slots__ = ['__root', '__state', '__parent', '__dict__', 'initial']
     __root: 'CompositeState'
-    __state: 'State'
     __parent: 'CompositeState'
-    _initial: Union[Callable, 'State', str]
+    __state: 'State'
 
     # # System Variables
     # _name: str
@@ -135,15 +125,21 @@ class StateChart(metaclass=MetaStateChart):
         self.__state = self.__root
 
         # initial setup
-        # if not self.__initial__:
-        self._initial = kwargs.get(
-            'initial',
-            self.root.initial if hasattr(self.root, 'initial') else None,
-        )
+        if 'initial' in kwargs:
+            self.__initial__ = kwargs['initial']
+        if not self.__initial__:
+            self.__initial__ = (
+                self.root.initial
+                if hasattr(self.root, 'initial')
+                else self.root
+            )
         self.state._process_transient_state(self)  # type: ignore
+        # TODO: deprecate callable initial state
         if self.root == self.state:
             initial = (
-                self.initial(self) if callable(self.initial) else self.initial
+                self.__initial__(self)
+                if callable(self.__initial__)
+                else self.__initial__
             )
             if initial:
                 self.__state = self.get_state(initial)
@@ -209,9 +205,9 @@ class StateChart(metaclass=MetaStateChart):
         return self.root.datamodel if self.root.datamodel else Null()
 
     @property
-    def initial(self) -> Union[Callable, 'State', str]:
+    def initial(self) -> 'Initial':
         """Return initial state of current parent."""
-        return self._initial
+        return self.__initial__
 
     @property
     def root(self) -> 'CompositeState':
