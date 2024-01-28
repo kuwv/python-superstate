@@ -67,16 +67,16 @@ class Transition:
             target = self.target
         results = None
         if self.action:
-            ActionModel = (
+            Executor = (
                 ctx.datamodel.executor
                 if ctx.datamodel and ctx.datamodel.executor
                 else None
             )
-            if ActionModel:
+            if Executor:
                 log.info("executed action event for %r", self.event)
-                action = ActionModel(ctx)
+                executor = Executor(ctx)
                 results = tuple(
-                    action.run(command, *args, **kwargs)
+                    executor.run(command, *args, **kwargs)
                     for command in tuplize(self.action)
                 )
         ctx.change_state(target)
