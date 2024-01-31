@@ -1,7 +1,9 @@
 """Provide superstate transition capabilities."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+
+from superstate.exception import InvalidConfig
 
 # from superstate.model import NameDescriptor
 from superstate.utils import tuplize
@@ -47,6 +49,23 @@ class Transition:
         self.cond = cond
         self.type = kind
         self.actions: Optional['EventActions'] = None
+
+    @classmethod
+    def create(cls, settings: Union['Transition', dict]) -> 'Transition':
+        """Create transition from configuration."""
+        print('----------------------------')
+        print(settings)
+        if isinstance(settings, Transition):
+            return settings
+        if isinstance(settings, dict):
+            return cls(
+                event=settings.get('event', ''),
+                target=settings['target'],  # XXX: should allow optional
+                action=settings.get('action'),
+                cond=settings.get('cond'),
+                # kind=settings.get('type', 'internal'),
+            )
+        raise InvalidConfig('could not find a valid transition configuration')
 
     def __repr__(self) -> str:
         return repr(f"Transition(event={self.event}, target={self.target})")

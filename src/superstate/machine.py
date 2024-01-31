@@ -7,25 +7,24 @@ from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
 from uuid import UUID
 
-from superstate import config, construct
+from superstate import config
 from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
     GuardNotSatisfied,
 )
-from superstate.model import Null
+from superstate.model import DataModel, Null
 from superstate.state import (
     AtomicState,
     CompositeState,
     # CompoundState,
     ParallelState,
+    State,
 )
 from superstate.types import Binding
 
 if TYPE_CHECKING:
-    from superstate.model import DataModel
-    from superstate.state import State
     from superstate.transition import Transition
     from superstate.types import Initial
 
@@ -40,6 +39,7 @@ class MetaStateChart(type):
     __binding__: str = cast(str, Binding('early', 'late'))
     __datamodel__: str
     _root: 'CompositeState'
+    datamodel: 'DataModel'
 
     def __new__(
         cls,
@@ -55,15 +55,17 @@ class MetaStateChart(type):
         initial = attrs.get('__initial__', None)
 
         binding = attrs.get('__binding__', config.DEFAULT_BINDING)
-        # if binding != construct.DEFAULT_BINDING:
+        # if binding:
         #     construct.DEFAULT_BINDING = binding
 
-        datamodel = attrs.get('__datamodel__', config.DEFAULT_DATAMODEL)
-        if datamodel != construct.DEFAULT_DATAMODEL:
-            construct.DEFAULT_DATAMODEL = datamodel
+        datamodel_type = attrs.get('__datamodel__', DataModel.enabled)
+        if datamodel_type:
+            DataModel.enabled = datamodel_type
+
+        # datamodel = attrs.pop('datamodel', {})
 
         root = (
-            construct.state(attrs.pop('__state__'))
+            State.create(attrs.pop('__state__'))
             if '__state__' in attrs
             else None
         )
@@ -72,7 +74,8 @@ class MetaStateChart(type):
         obj.__name__ = name
         obj.__initial__ = initial
         obj.__binding__ = binding
-        obj.__datamodel__ = datamodel
+        obj.__datamodel__ = datamodel_type
+        # obj.datamodel = DataModel.create(datamodel)
         if root:
             obj._root = root  # type: ignore
         return obj

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 DEFAULT_BINDING: str = 'early'
 
 DEFAULT_DATAMODEL: str = 'default'
-ENABLED_DATAMODELS: Iterable[Type['DataModel']] = (
+DATAMODELS: Iterable[Type['DataModel']] = (
     Default,  # platform-specific
     Null,
     # ECMAScript,
