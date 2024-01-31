@@ -2,11 +2,13 @@
 
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, Any, Sequence, Optional, Type
+from typing import TYPE_CHECKING, Any, Sequence, Optional, Type, Union
 from urllib.request import urlopen
 
+from superstate.exception import InvalidConfig
 from superstate.model.common import In
 from superstate.model.default import Action, Guard
+from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
     from superstate.types import ActionBase, GuardBase
@@ -46,6 +48,20 @@ class Data:
         #   - src should store the URL and then retrieve when accessed
         #   - expr should store and evalute using the datamodel scripting
         #     language
+
+    @classmethod
+    def create(cls, settings: Union['Data', dict]) -> 'Data':
+        """Return data object for data mapper."""
+        if isinstance(settings, Data):
+            return settings
+        if isinstance(settings, dict):
+            return cls(
+                id=settings.pop('id'),
+                src=settings.pop('src', None),
+                expr=settings.pop('expr', None),
+                value=settings,
+            )
+        raise InvalidConfig('could not find a valid data configuration')
 
 
 @dataclass
@@ -89,6 +105,7 @@ class Param:
 class DataModel(ABC):
     """Instantiate state types from class metadata."""
 
+    enabled: str = 'default'
     data: Sequence['Data'] = field(default_factory=list)
 
     @property
@@ -107,6 +124,21 @@ class DataModel(ABC):
         """Get the configured scripting expression language."""
 
     # TODO: need to handle foreach
+
+    @classmethod
+    def create(cls, settings: Union['DataModel', dict]) -> 'DataModel':
+        """Return data model for data mapper."""
+        if isinstance(settings, DataModel):
+            return settings
+        if isinstance(settings, dict):
+            for datamodel in lookup_subclasses(cls):
+                if cls.enabled.lower() == datamodel.__name__.lower():
+                    return datamodel(
+                        tuple(map(Data.create, settings['data']))
+                        if 'data' in settings
+                        else []
+                    )
+        raise InvalidConfig('could not find a valid data model configuration')
 
 
 @dataclass

@@ -10,20 +10,20 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Set,
-    Type,
     Tuple,
+    Union,
 )
 
 from superstate.exception import InvalidConfig, InvalidTransition
-from superstate.utils import tuplize
+from superstate.model import DataModel
+from superstate.transition import Transition
+from superstate.utils import lookup_subclasses, tuplize
 
 # from superstate.model import NameDescriptor
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.model import Data, DataModel
-    from superstate.transition import Transition
+    from superstate.model import Data
     from superstate.types import EventActions, Initial
 
 log = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ class State:
         else:
             kind = 'atomic'
 
-        for subclass in cls.lookup_subclasses(cls):
+        for subclass in lookup_subclasses(cls):
             if subclass.__name__.lower().startswith(kind):
                 return super().__new__(subclass)
         return super().__new__(cls)
@@ -121,6 +121,39 @@ class State:
         # self.__ctx: Optional['StateChart'] = None
         # self.validate()
 
+    @classmethod
+    def create(
+        cls, settings: Union['State', dict, str]
+    ) -> Union['CompositeState', 'State']:
+        """Create state from configuration."""
+        obj = None
+        if isinstance(settings, State):
+            obj = settings
+        elif isinstance(settings, dict):
+            obj = settings.pop('factory', State)(
+                name=settings.get('name', 'root'),
+                initial=settings.get('initial'),
+                type=settings.get('type'),
+                datamodel=DataModel.create(settings.get('datamodel', {})),
+                states=(
+                    list(map(State.create, settings['states']))
+                    if 'states' in settings
+                    else []
+                ),
+                transitions=(
+                    list(map(Transition.create, settings['transitions']))
+                    if 'transitions' in settings
+                    else []
+                ),
+                on_entry=settings.get('on_entry'),
+                on_exit=settings.get('on_exit'),
+            )
+        elif isinstance(settings, str):
+            obj = State(settings)
+        if obj:
+            return obj
+        raise InvalidConfig('could not create state from provided settings')
+
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.name == other.name
@@ -136,13 +169,6 @@ class State:
         while target:
             yield target
             target = target.parent
-
-    @classmethod
-    def lookup_subclasses(cls, obj: Type['State']) -> Set[Type['State']]:
-        """Get all subsclasses."""
-        return set(obj.__subclasses__()).union(
-            [s for c in obj.__subclasses__() for s in cls.lookup_subclasses(c)]
-        )
 
     @property
     def name(self) -> 'str':
