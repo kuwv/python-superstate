@@ -22,7 +22,11 @@ class Machine(StateChart):
             {'name': 'stopped', 'type': 'final'},
         ],
         'transitions': [
-            {'target': 'started', 'cond': lambda ctx: ctx.autostart}
+            {
+                'event': '',
+                'target': 'started',
+                'cond': lambda ctx: ctx.autostart,
+            }
         ],
     }
 

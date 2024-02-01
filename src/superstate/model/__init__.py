@@ -2,12 +2,21 @@
 
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from dataclasses import InitVar, dataclass, field
-from typing import TYPE_CHECKING, Any, Sequence, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Sequence,
+    Optional,
+    Type,
+    Union,
+)
 from urllib.request import urlopen
 
 from superstate.exception import InvalidConfig
 from superstate.model.common import In
 from superstate.model.default import Action, Guard
+from superstate.types import Selection
 from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
@@ -77,8 +86,10 @@ class Event:
     """Represent a system event."""
 
     name: str
-    kind: str  # platorm, internal, or external
-    sendid: str
+    kind: 'Selection' = field(
+        default=Selection('platorm', 'internal', 'external')
+    )
+    # sendid: str
     origin: Optional[str] = None  # URI
     origintype: Optional[str] = None
     invokeid: Optional[str] = None
@@ -105,7 +116,7 @@ class Param:
 class DataModel(ABC):
     """Instantiate state types from class metadata."""
 
-    enabled: str = 'default'
+    enabled: ClassVar[str] = 'default'
     data: Sequence['Data'] = field(default_factory=list)
 
     @property
