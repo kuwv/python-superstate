@@ -1,20 +1,20 @@
 """Provide superstate transition capabilities."""
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from superstate.exception import InvalidConfig
 
-# from superstate.model import NameDescriptor
+from superstate.types import Selection, Identifier
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-
-    # from superstate.state import State
     from superstate.types import EventActions, GuardConditions
 
 log = logging.getLogger(__name__)
+
+EVENT_PATTERN = r'^(([a-zA-Z][a-zA-Z0-9:\.\-_]*(\.\*)?)|\*)?$'
 
 
 class Transition:
@@ -29,8 +29,9 @@ class Transition:
     """
 
     # __slots__ = ['event', 'target', 'action', 'cond']
-    # event = cast(str, NameDescriptor())
-    # target = cast(str, NameDescriptor())
+    event: str = cast(str, Identifier(EVENT_PATTERN))
+    target: str = cast(str, Identifier())
+    kind: str = cast(str, Selection('internal', 'external'))
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -47,14 +48,12 @@ class Transition:
         self.target = target
         self.action = action
         self.cond = cond
-        self.type = kind
+        self.kind = kind
         self.actions: Optional['EventActions'] = None
 
     @classmethod
     def create(cls, settings: Union['Transition', dict]) -> 'Transition':
         """Create transition from configuration."""
-        print('----------------------------')
-        print(settings)
         if isinstance(settings, Transition):
             return settings
         if isinstance(settings, dict):

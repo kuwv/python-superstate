@@ -1,5 +1,6 @@
 """Provide common types for statechart components."""
 
+import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from typing import (
     TYPE_CHECKING,
@@ -8,6 +9,7 @@ from typing import (
     Optional,
     Sequence,
     Type,
+    TypeVar,
     Union,
 )
 
@@ -22,6 +24,8 @@ GuardCondition = Union[Callable, str]
 GuardConditions = Union[GuardCondition, Sequence[GuardCondition]]
 Initial = Union[Callable, str]
 
+T = TypeVar('T')
+
 
 class Validator(ABC):
     """Descriptor validator."""
@@ -31,12 +35,10 @@ class Validator(ABC):
     def __set_name__(self, obj: object, name: str) -> None:
         self.name = name
 
-    def __get__(
-        self, obj: object, objtype: Optional[Type[object]] = None
-    ) -> str:
+    def __get__(self, obj: object, objtype: Optional[Type[T]] = None) -> T:
         return getattr(obj, f"_{self.name}")
 
-    def __set__(self, obj: object, value: Any) -> None:
+    def __set__(self, obj: object, value: T) -> None:
         self.validate(value)
         setattr(obj, f"_{self.name}", value)
 
@@ -45,40 +47,32 @@ class Validator(ABC):
         """Abstract for string validation."""
 
 
-class Binding(Validator):
+class Selection(Validator):
     """String descriptor with validation."""
 
     def __init__(self, *items: str) -> None:
         super().__init__()
-        self.__states = items
+        self.__items = items
 
-    def validate(self, value: str) -> None:
+    def validate(self, value: T) -> None:
         if not isinstance(value, str):
             raise ValueError(f"Expected {value!r} to be string")
-        if value not in self.__states:
-            raise ValueError(
-                f"Expected {value!r} to be one of {self.__states}"
-            )
+        if value not in self.__items:
+            raise ValueError(f"Expected {value!r} to be one of {self.__items}")
 
 
-class NameDescriptor:
+class Identifier(Validator):
     """Validate state naming."""
 
-    # __slots__ = ['id', 'owner']
+    def __init__(self, pattern: str = r'^[a-zA-Z][a-zA-Z0-9:\.\-_]*$') -> None:
+        super().__init__()
+        self.pattern = pattern
 
-    def __set_name__(
-        self, owner: object, id: str  # pylint: disable=redefined-builtin
-    ) -> None:
-        self.owner = owner  # pylint: disable=attribute-defined-outside-init
-        self.id = id  # pylint: disable=attribute-defined-outside-init
-
-    def __get__(self, obj: object, objtype: Optional[str] = None) -> str:
-        return getattr(obj, self.id)
-
-    def __set__(self, obj: object, value: str) -> None:
-        if not value.replace('_', '').isalnum():
-            raise InvalidConfig('state id contains invalid characters')
-        setattr(obj, self.id, value)
+    def validate(self, value: str) -> None:
+        print(value)
+        match = re.match(self.pattern, value, re.IGNORECASE)
+        if not match:
+            raise InvalidConfig('provided identifier is invalid')
 
 
 class ActionBase(ABC):

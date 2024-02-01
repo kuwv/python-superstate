@@ -21,12 +21,12 @@ class LoanRequest(StateChart):
                 'name': 'analyzing',
                 'transitions': [
                     {
-                        'event': 'forward_analysis_result',
+                        'event': 'forward.analysis.result',
                         'cond': 'was_loan_accepted',
                         'target': 'accepted',
                     },
                     {
-                        'event': 'forward_analysis_result',
+                        'event': 'forward.analysis.result',
                         'cond': 'was_loan_refused',
                         'target': 'refused',
                     },
@@ -50,10 +50,10 @@ class LoanRequest(StateChart):
 def test_it_selects_the_transition_having_a_passing_guard():
     request = LoanRequest()
     request.trigger('analyze')
-    request.trigger('forward_analysis_result')
+    request.trigger('forward.analysis.result')
     assert request.state == 'accepted'
 
     request = LoanRequest()
     request.trigger('analyze', accepted=False)
-    request.trigger('forward_analysis_result')
+    request.trigger('forward.analysis.result')
     assert request.state == 'refused'

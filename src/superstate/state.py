@@ -12,14 +12,16 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 from superstate.exception import InvalidConfig, InvalidTransition
 from superstate.model import DataModel
 from superstate.transition import Transition
+from superstate.types import Identifier
 from superstate.utils import lookup_subclasses, tuplize
 
-# from superstate.model import NameDescriptor
+# from superstate.model import Identifier
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
@@ -77,7 +79,7 @@ class State:
     # ]
 
     __datamodel: Optional['DataModel']
-    # name = cast(str, NameDescriptor('_name'))
+    name: str = cast(str, Identifier())
     current_state: 'State'
 
     # pylint: disable-next=unused-argument
@@ -115,7 +117,7 @@ class State:
         **kwargs: Any,
     ) -> None:
         self.__parent: Optional['CompositeState'] = None
-        self.__name = name
+        self.name = name
         self.__type = kwargs.get('type', 'atomic')
         self.__datamodel = kwargs.pop('datamodel', None)
         # self.__ctx: Optional['StateChart'] = None
@@ -169,11 +171,6 @@ class State:
         while target:
             yield target
             target = target.parent
-
-    @property
-    def name(self) -> 'str':
-        """Get name of state."""
-        return self.__name
 
     @property
     def datamodel(self) -> Optional['DataModel']:

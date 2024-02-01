@@ -22,7 +22,7 @@ from superstate.state import (
     ParallelState,
     State,
 )
-from superstate.types import Binding
+from superstate.types import Selection
 
 if TYPE_CHECKING:
     from superstate.transition import Transition
@@ -36,7 +36,7 @@ class MetaStateChart(type):
 
     __name__: str
     __initial__: 'Initial'
-    __binding__: str = cast(str, Binding('early', 'late'))
+    __binding__: str = cast(str, Selection('early', 'late'))
     __datamodel__: str
     _root: 'CompositeState'
     datamodel: 'DataModel'
