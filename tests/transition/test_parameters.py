@@ -11,7 +11,7 @@ class Door(StateChart):
                     {
                         'event': 'open',
                         'target': 'open',
-                        'action': 'open_action',
+                        'actions': ['open_action'],
                     }
                 ],
             },
@@ -21,7 +21,7 @@ class Door(StateChart):
                     {
                         'event': 'close',
                         'target': 'closed',
-                        'action': 'close_action',
+                        'actions': ['close_action'],
                     }
                 ],
             },

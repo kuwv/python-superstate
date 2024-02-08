@@ -11,7 +11,7 @@ class CrazyGuy(StateChart):
                     {
                         'event': 'jump',
                         'target': 'falling',
-                        'action': ['become_at_risk', 'accelerate'],
+                        'actions': ['become_at_risk', 'accelerate'],
                     }
                 ],
             },

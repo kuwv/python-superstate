@@ -23,7 +23,7 @@ class ActionBase(ABC):
         return self.__ctx
 
     @abstractmethod
-    def run(self, cmd: 'ActionType', *args: Any, **kwargs: Any) -> Any:
+    def run(self, statement: 'ActionType', *args: Any, **kwargs: Any) -> Any:
         """Run action."""
 
 
@@ -40,5 +40,7 @@ class ConditionBase(ABC):
         return self.__ctx
 
     @abstractmethod
-    def check(self, cond: 'ConditionType', *args: Any, **kwargs: Any) -> bool:
+    def check(
+        self, statement: 'ConditionType', *args: Any, **kwargs: Any
+    ) -> bool:
         """Evaluate condition."""

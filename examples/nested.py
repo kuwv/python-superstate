@@ -1,80 +1,76 @@
 """Demonstrate a nested."""
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class Nested(StateChart):
     """Proide an object representing a nested."""
 
-    state = state(
-        {
-            'initial': 'start',
-            'states': [
-                {
-                    'name': 'start',
-                    'initial': 'inter_one',
-                    'on_entry': lambda: print('start'),
-                    'transitions': [
-                        {
-                            'event': 'change',
-                            'target': 'start.inter_one',
-                            'action': lambda: print(
-                                'transitioning to inter_one'
-                            ),
-                        }
-                    ],
-                    'states': [
-                        {
-                            'name': 'inter_one',
-                            'transitions': [
-                                {
-                                    'event': 'change',
-                                    'target': 'start.inter_two',
-                                    'action': lambda: print(
-                                        'transitioning to inter_two'
-                                    ),
-                                }
-                            ],
-                            'on_entry': lambda: print('inter_one'),
-                        },
-                        {
-                            'name': 'inter_two',
-                            'initial': 'substate_one',
-                            'states': [
-                                {
-                                    'name': 'substate_one',
-                                    'transitions': [
-                                        {
-                                            'event': 'change',
-                                            # XXX: this does not seem right
-                                            'target': 'end',
-                                            'action': lambda: print(
-                                                'transitioning to end'
-                                            ),
-                                        },
-                                    ],
-                                },
-                            ],
-                            'transitions': [
-                                {
-                                    'event': 'change',
-                                    'target': 'start.inter_two.substate_one',
-                                    'action': lambda: print(
-                                        'transitioning to substate_one'
-                                    ),
-                                }
-                            ],
-                            'on_entry': lambda: print('inter_two'),
-                        },
-                    ],
-                },
-                {
-                    'name': 'end',
-                    'on_entry': lambda: print('StateChart ended!'),
-                },
-            ],
-        }
-    )
+    state = {
+        'initial': 'start',
+        'states': [
+            {
+                'name': 'start',
+                'initial': 'inter_one',
+                'on_entry': lambda: print('start'),
+                'transitions': [
+                    {
+                        'event': 'change',
+                        'target': 'start.inter_one',
+                        'actions': lambda: print('transitioning to inter_one'),
+                    }
+                ],
+                'states': [
+                    {
+                        'name': 'inter_one',
+                        'transitions': [
+                            {
+                                'event': 'change',
+                                'target': 'start.inter_two',
+                                'actions': lambda: print(
+                                    'transitioning to inter_two'
+                                ),
+                            }
+                        ],
+                        'on_entry': lambda: print('inter_one'),
+                    },
+                    {
+                        'name': 'inter_two',
+                        'initial': 'substate_one',
+                        'states': [
+                            {
+                                'name': 'substate_one',
+                                'transitions': [
+                                    {
+                                        'event': 'change',
+                                        # XXX: this does not seem right
+                                        'target': 'end',
+                                        'actions': lambda: print(
+                                            'transitioning to end'
+                                        ),
+                                    },
+                                ],
+                            },
+                        ],
+                        'transitions': [
+                            {
+                                'event': 'change',
+                                'target': 'start.inter_two.substate_one',
+                                'actions': lambda: print(
+                                    'transitioning to substate_one'
+                                ),
+                            }
+                        ],
+                        'on_entry': lambda: print('inter_two'),
+                    },
+                ],
+            },
+            {
+                'name': 'end',
+                'on_entry': lambda: print('StateChart ended!'),
+            },
+        ],
+    }
 
 
 if __name__ == '__main__':

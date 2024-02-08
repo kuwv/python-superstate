@@ -20,7 +20,7 @@ class StopLight(State):
                         Transition(
                             event='turn_green',
                             target='green',
-                            action=lambda: time.sleep(5),
+                            actions=[lambda: time.sleep(5)],
                         )
                     ],
                     on_entry=lambda: print('Red Light!'),
@@ -31,7 +31,7 @@ class StopLight(State):
                         Transition(
                             event='turn_red',
                             target='red',
-                            action=lambda: time.sleep(5),
+                            actions=[lambda: time.sleep(5)],
                         )
                     ],
                     on_entry=lambda: print('Yellow light!'),
@@ -42,7 +42,7 @@ class StopLight(State):
                         Transition(
                             event='turn_yellow',
                             target='yellow',
-                            action=lambda: time.sleep(2),
+                            actions=[lambda: time.sleep(2)],
                         )
                     ],
                     on_entry=lambda: print('Green light!'),

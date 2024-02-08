@@ -28,9 +28,10 @@ class Transition:
     """
 
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
+
     event: str = cast(str, Identifier(EVENT_PATTERN))
     target: str = cast(str, Identifier())
-    action: Optional['ActionTypes']
+    actions: Optional['ActionTypes']
     cond: Optional['ConditionTypes']
     type: str = cast(str, Selection('internal', 'external'))
 
@@ -44,7 +45,7 @@ class Transition:
         # https://www.w3.org/TR/scxml/#events
         self.event = kwargs.get('event', '')
         self.target = kwargs['target']
-        self.action = kwargs.get('action')
+        self.actions = kwargs.get('actions')
         self.cond = kwargs.get('cond')
         self.type = kwargs.get('type', 'internal')
 
@@ -57,7 +58,7 @@ class Transition:
             return cls(
                 event=settings.get('event', ''),
                 target=settings['target'],  # XXX: should allow optional
-                action=settings.get('action'),
+                actions=settings.get('actions'),
                 cond=settings.get('cond'),
                 type=settings.get('type', 'internal'),
             )
@@ -82,13 +83,13 @@ class Transition:
             target = self.target
 
         results = None
-        if self.action:
+        if self.actions:
             Executor = ctx._datamodel.executor if ctx._datamodel else None
             if Executor:
                 executor = Executor(ctx)
                 results = tuple(
                     executor.run(command, *args, **kwargs)
-                    for command in tuplize(self.action)
+                    for command in tuplize(self.actions)
                 )
                 log.info("executed action event for %r", self.event)
         ctx.change_state(target)
