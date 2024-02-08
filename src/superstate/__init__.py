@@ -29,10 +29,11 @@ from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
-    GuardNotSatisfied,
+    ConditionNotSatisfied,
 )
+from superstate.datamodel import DataModel
 from superstate.machine import StateChart
-from superstate.model import Data, DataModel
+from superstate.model.data import Data
 from superstate.state import (
     AtomicState,
     CompositeState,
@@ -69,7 +70,7 @@ __all__ = (
     'InvalidConfig',
     'InvalidState',
     'InvalidTransition',
-    'GuardNotSatisfied',
+    'ConditionNotSatisfied',
     # helper functions
     # 'states',
     # 'state',

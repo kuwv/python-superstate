@@ -3,15 +3,10 @@
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 
-from superstate.types import ActionBase, GuardBase
+from superstate.model.expression.base import ActionBase, ConditionBase
 
 if TYPE_CHECKING:
-    from superstate.types import EventAction, GuardCondition
-
-
-def tuplize(value: Any) -> Tuple[Any, ...]:
-    """Convert various collection types to tuple."""
-    return tuple(value) if type(value) in (list, tuple) else (value,)
+    from superstate.types import ActionType, ConditionType
 
 
 class Activity:
@@ -21,11 +16,16 @@ class Activity:
 class Action(ActionBase):
     """Provide executable action from transition."""
 
-    __slots__ = ['__ctx']
+    @staticmethod
+    def __run(action: Callable, *args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(action)
+        if len(signature.parameters.keys()) != 0:
+            return action(*args, **kwargs)
+        return action()
 
     def run(
         self,
-        cmd: 'EventAction',
+        cmd: 'ActionType',
         *args: Any,
         **kwargs: Any,
     ) -> Tuple[Any, ...]:
@@ -34,20 +34,11 @@ class Action(ActionBase):
             return self.__run(cmd, self.ctx, *args, **kwargs)
         return self.__run(getattr(self.ctx, cmd), *args, **kwargs)
 
-    @staticmethod
-    def __run(action: Callable, *args: Any, **kwargs: Any) -> Any:
-        signature = inspect.signature(action)
-        if len(signature.parameters.keys()) != 0:
-            return action(*args, **kwargs)
-        return action()
 
-
-class Guard(GuardBase):
+class Condition(ConditionBase):
     """Provide guard condition to determine when transitions should occur."""
 
-    __slots__ = ['__ctx']
-
-    def check(self, cond: 'GuardCondition', *args: Any, **kwargs: Any) -> bool:
+    def check(self, cond: 'ConditionType', *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
         if callable(cond):
             return cond(self.ctx, *args, **kwargs)

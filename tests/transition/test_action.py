@@ -2,7 +2,7 @@ from superstate import StateChart
 
 
 class CrazyGuy(StateChart):
-    __state__ = {
+    state = {
         'initial': 'looking',
         'states': [
             {

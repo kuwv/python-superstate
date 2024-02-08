@@ -1,25 +1,18 @@
-"""Provide Null Data Model."""
+"""Provide common expressions used by all data models."""
 
 import re
 from typing import TYPE_CHECKING, Any
 
-from superstate.types import GuardBase
+from superstate.model.expression.base import ConditionBase
 
 if TYPE_CHECKING:
-    from superstate.machine import StateChart
-    from superstate.types import GuardCondition
+    from superstate.types import ConditionType
 
 
-class In(GuardBase):
-    """Provide condition using 'in' predicate to determine transition."""
+class In(ConditionBase):
+    """Provide condition using 'in()' predicate to determine transition."""
 
-    __slots__ = ['__ctx']
-
-    def __init__(self, ctx: 'StateChart') -> None:
-        super().__init__()
-        self.__ctx = ctx
-
-    def check(self, cond: 'GuardCondition', *args: Any, **kwargs: Any) -> bool:
+    def check(self, cond: 'ConditionType', *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
         if isinstance(cond, str):
             match = re.match(

@@ -17,5 +17,5 @@ class InvalidState(SuperstateException):
     """Manage invalid superstate state exceptions."""
 
 
-class GuardNotSatisfied(SuperstateException):
+class ConditionNotSatisfied(SuperstateException):
     """Manage superstate guard excluded transition exceptions."""

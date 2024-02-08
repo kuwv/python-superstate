@@ -4,7 +4,7 @@ from superstate import StateChart
 
 
 class LoanRequest(StateChart):
-    __state__ = {
+    state = {
         'initial': 'pending',
         'states': [
             {
@@ -51,9 +51,9 @@ def test_it_selects_the_transition_having_a_passing_guard():
     request = LoanRequest()
     request.trigger('analyze')
     request.trigger('forward.analysis.result')
-    assert request.state == 'accepted'
+    assert request.current_state == 'accepted'
 
     request = LoanRequest()
     request.trigger('analyze', accepted=False)
     request.trigger('forward.analysis.result')
-    assert request.state == 'refused'
+    assert request.current_state == 'refused'

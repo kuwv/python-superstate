@@ -55,7 +55,7 @@ class StopLight(State):
 class Intersection(StateChart):
     """Provide an object representing an intersection."""
 
-    __state__ = State(
+    state = State(
         name='intersection',
         type='parallel',
         states=[

@@ -4,7 +4,17 @@ import logging
 import os
 from copy import deepcopy
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    cast,
+)
 from uuid import UUID
 
 from superstate import config
@@ -12,19 +22,21 @@ from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
-    GuardNotSatisfied,
+    ConditionNotSatisfied,
 )
-from superstate.model import DataModel, Null
+from superstate.datamodel import DataModel
 from superstate.state import (
     AtomicState,
     CompositeState,
     # CompoundState,
     ParallelState,
     State,
+    Union,
 )
 from superstate.types import Selection
 
 if TYPE_CHECKING:
+    from superstate.model.data import Data
     from superstate.transition import Transition
     from superstate.types import Initial
 
@@ -37,9 +49,9 @@ class MetaStateChart(type):
     __name__: str
     __initial__: 'Initial'
     __binding__: str = cast(str, Selection('early', 'late'))
-    __datamodel__: str
+    __datamodel__: Union[Type['DataModel'], str]
+    _datamodel: Optional['DataModel']
     _root: 'CompositeState'
-    datamodel: 'DataModel'
 
     def __new__(
         cls,
@@ -62,20 +74,17 @@ class MetaStateChart(type):
         if datamodel_type:
             DataModel.enabled = datamodel_type
 
-        # datamodel = attrs.pop('datamodel', {})
+        datamodel = attrs.pop('datamodel', {})
 
-        root = (
-            State.create(attrs.pop('__state__'))
-            if '__state__' in attrs
-            else None
-        )
+        root = State.create(attrs.pop('state')) if 'state' in attrs else None
 
         obj = super().__new__(cls, name, bases, attrs)
         obj.__name__ = name
         obj.__initial__ = initial
         obj.__binding__ = binding
+        # obj.__datamodel__ = DataModel.get_datamodel(datamodel_type)
         obj.__datamodel__ = datamodel_type
-        # obj.datamodel = DataModel.create(datamodel)
+        obj._datamodel = DataModel.create(datamodel)
         if root:
             obj._root = root  # type: ignore
         return obj
@@ -84,10 +93,12 @@ class MetaStateChart(type):
 class StateChart(metaclass=MetaStateChart):
     """Represent statechart capabilities."""
 
-    # __slots__ = ['__root', '__state', '__parent', '__dict__', 'initial']
+    # __slots__ = [
+    #     '__dict__', '__current_state', '__parent', '__root', 'initial'
+    # ]
     __root: 'CompositeState'
     __parent: 'CompositeState'
-    __state: 'State'
+    __current_state: 'State'
 
     # # System Variables
     # _name: str
@@ -121,11 +132,17 @@ class StateChart(metaclass=MetaStateChart):
 
         if hasattr(self.__class__, '_root'):
             self.__root = deepcopy(self.__class__._root)
-        elif 'parent' in kwargs:
-            self.__root = deepcopy(kwargs['parent'])
+            self._root = None
         else:
             raise InvalidConfig('attempted initialization with empty parent')
-        self.__state = self.__root
+        self.__current_state = self.__root
+
+        # if self.__binding__ == 'early':
+        #     self._x = {}
+        #     for x in self._datamodel.data:
+        #         print('----', x.id)
+        #         url
+        #         expr
 
         # initial setup
         if 'initial' in kwargs:
@@ -136,29 +153,25 @@ class StateChart(metaclass=MetaStateChart):
                 if hasattr(self.root, 'initial')
                 else self.root
             )
-        self.state._process_transient_state(self)  # type: ignore
+        self.current_state._process_transient_state(self)  # type: ignore
         # TODO: deprecate callable initial state
-        if self.root == self.state:
+        if self.root == self.current_state:
             initial = (
                 self.__initial__(self)
                 if callable(self.__initial__)
                 else self.__initial__
             )
             if initial:
-                self.__state = self.get_state(initial)
+                self.__current_state = self.get_state(initial)
             elif not isinstance(self.__root, ParallelState):
                 raise InvalidConfig(
                     'an initial state must exist for statechart'
                 )
         log.info('loaded states and transitions')
 
-        # if binding == 'early':
-        #
-
         # self.parent.run_on_entry(self)
-        self.state.run_on_entry(self)
+        self.current_state.run_on_entry(self)
         log.info('statechart initialization complete')
-        self._root = None
 
     def __getattr__(self, name: str) -> Any:
         # do not attempt to resolve missing dunders
@@ -202,15 +215,25 @@ class StateChart(metaclass=MetaStateChart):
                 return self.parent.states[name]
         raise AttributeError
 
+    # @property
+    # def _x(self) -> Optional['DataModel']:
+    #     """Return the active datamodel type."""
+    #     return self._datamodel.data if self._datamodel else None
+
     @property
-    def datamodel(self) -> 'DataModel':
-        """Return the active datamodel type."""
-        return self.root.datamodel if self.root.datamodel else Null()
+    def _x(self) -> Optional[Sequence['Data']]:
+        """Return the platform-specific variables."""
+        return self._datamodel.data if self._datamodel else None
 
     @property
     def initial(self) -> 'Initial':
         """Return initial state of current parent."""
         return self.__initial__
+
+    @property
+    def current_state(self) -> 'State':
+        """Return the current state."""
+        return self.__current_state
 
     @property
     def root(self) -> 'CompositeState':
@@ -220,19 +243,14 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def parent(self) -> 'CompositeState':
         """Return parent."""
-        return self.state.parent or self.root
-
-    @property
-    def state(self) -> 'State':
-        """Return the current state."""
-        return self.__state
+        return self.current_state.parent or self.root
 
     @property
     def children(self) -> Tuple['State', ...]:
         """Return list of states."""
         return (
-            tuple(self.__state.states)
-            if hasattr(self.__state, 'states')
+            tuple(self.__current_state.states)
+            if hasattr(self.__current_state, 'states')
             else ()
         )
 
@@ -250,7 +268,7 @@ class StateChart(metaclass=MetaStateChart):
     def active(self) -> Tuple['State', ...]:
         """Return active states."""
         states: List['State'] = []
-        parents = list(reversed(self.state))  # type: ignore
+        parents = list(reversed(self.current_state))  # type: ignore
         for i, x in enumerate(parents):
             n = i + 1
             if not n >= len(parents) and isinstance(parents[n], ParallelState):
@@ -261,11 +279,11 @@ class StateChart(metaclass=MetaStateChart):
 
     def get_relpath(self, target: str) -> str:
         """Get relative statepath of target state to current state."""
-        if self.state == target:
+        if self.current_state == target:
             relpath = '.'
         else:
             path = ['']
-            source_path = self.state.path.split('.')
+            source_path = self.current_state.path.split('.')
             target_path = self.get_state(target).path.split('.')
             for i, x in enumerate(
                 zip_longest(source_path, target_path, fillvalue='')
@@ -287,8 +305,8 @@ class StateChart(metaclass=MetaStateChart):
         """Traverse statepath."""
         relpath = self.get_relpath(statepath)
         if relpath == '.':
-            self.state.run_on_exit(self)
-            self.state.run_on_entry(self)
+            self.current_state.run_on_exit(self)
+            self.current_state.run_on_entry(self)
         else:
             subpaths = relpath.split('.')
             for index, subpath in enumerate(subpaths):
@@ -296,21 +314,21 @@ class StateChart(metaclass=MetaStateChart):
                     if subpath == '':
                         if index == 0:
                             continue
-                        self.state.run_on_exit(self)
-                        self.__state = self.active[1]
+                        self.current_state.run_on_exit(self)
+                        self.__current_state = self.active[1]
                     elif (
-                        isinstance(self.state, CompositeState)
-                        and subpath in self.state.states.keys()
+                        isinstance(self.current_state, CompositeState)
+                        and subpath in self.current_state.states.keys()
                     ):
-                        state = self.state.states[subpath]
-                        self.__state = state
+                        state = self.current_state.states[subpath]
+                        self.__current_state = state
                         state.run_on_entry(self)
                     else:
                         raise Exception(f"path not found: {statepath}")
                 except Exception as err:
                     log.error(err)
                     raise KeyError('parent is undefined') from err
-        # if type(self.state) not in [AtomicState, ParallelState]:
+        # if type(self.current_state) not in [AtomicState, ParallelState]:
         #     # TODO: need to transition from CompoundState to AtomicState
         #     print('state transition not complete')
         log.info('changed state to %s', statepath)
@@ -373,8 +391,8 @@ class StateChart(metaclass=MetaStateChart):
     def transitions(self) -> Tuple['Transition', ...]:
         """Return list of current transitions."""
         return (
-            tuple(self.state.transitions)
-            if hasattr(self.state, 'transitions')
+            tuple(self.current_state.transitions)
+            if hasattr(self.current_state, 'transitions')
             else ()
         )
 
@@ -427,7 +445,7 @@ class StateChart(metaclass=MetaStateChart):
                 return allowed[0]
             guarded += transitions
         if len(guarded) != 0:
-            raise GuardNotSatisfied('no transition possible from state')
+            raise ConditionNotSatisfied('no transition possible from state')
         raise InvalidTransition(f"transition could not be found: {event}")
 
     def trigger(

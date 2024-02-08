@@ -1,6 +1,6 @@
 import pytest
 
-from superstate import GuardNotSatisfied, StateChart
+from superstate import ConditionNotSatisfied, StateChart
 
 footsteps = []
 
@@ -18,7 +18,7 @@ def pre_falling_function() -> None:
 
 
 class JumperGuy(StateChart):
-    __state__ = {
+    state = {
         'initial': 'looking',
         'states': [
             {
@@ -50,9 +50,9 @@ class JumperGuy(StateChart):
 def test_every_callback_is_callable() -> None:
     """every callback can be a callable"""
     guy = JumperGuy()
-    assert guy.state == 'looking'
+    assert guy.current_state == 'looking'
     guy.trigger('jump')
-    assert guy.state == 'falling'
+    assert guy.current_state == 'falling'
     assert len(footsteps) == 5
     assert footsteps == [
         'looking:on_entry',
@@ -65,7 +65,7 @@ def test_every_callback_is_callable() -> None:
 
 def test_deny_state_change_if_guard_callable_returns_false() -> None:
     class Door(StateChart):
-        __state__ = {
+        state = {
             'initial': 'closed',
             'states': [
                 {'name': 'open'},
@@ -87,5 +87,5 @@ def test_deny_state_change_if_guard_callable_returns_false() -> None:
 
     door = Door()
     door.locked = True
-    with pytest.raises(GuardNotSatisfied):
+    with pytest.raises(ConditionNotSatisfied):
         door.open()

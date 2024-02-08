@@ -4,13 +4,12 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from superstate.exception import InvalidConfig
-
 from superstate.types import Selection, Identifier
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.types import EventActions, GuardConditions
+    from superstate.types import ActionTypes, ConditionTypes
 
 log = logging.getLogger(__name__)
 
@@ -28,28 +27,26 @@ class Transition:
     name. In all cases, the token matching is case sensitive. ]
     """
 
-    # __slots__ = ['event', 'target', 'action', 'cond']
+    # __slots__ = ['event', 'target', 'action', 'cond', 'type']
     event: str = cast(str, Identifier(EVENT_PATTERN))
     target: str = cast(str, Identifier())
-    kind: str = cast(str, Selection('internal', 'external'))
+    action: Optional['ActionTypes']
+    cond: Optional['ConditionTypes']
+    type: str = cast(str, Selection('internal', 'external'))
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
-        event: str,
-        target: str,  # XXX target can be self-transition
-        action: Optional['EventActions'] = None,  # TODO: switch to splat
-        cond: Optional['GuardConditions'] = None,  # XXX: should default True
-        kind: str = 'internal',
-        # **kwargs: Any,
+        # settings: Optional[Dict[str, Any]] = None,
+        # /,
+        **kwargs: Any,
     ) -> None:
         """Transition from one state to another."""
         # https://www.w3.org/TR/scxml/#events
-        self.event = event
-        self.target = target
-        self.action = action
-        self.cond = cond
-        self.kind = kind
-        self.actions: Optional['EventActions'] = None
+        self.event = kwargs.get('event', '')
+        self.target = kwargs['target']
+        self.action = kwargs.get('action')
+        self.cond = kwargs.get('cond')
+        self.type = kwargs.get('type', 'internal')
 
     @classmethod
     def create(cls, settings: Union['Transition', dict]) -> 'Transition':
@@ -62,7 +59,7 @@ class Transition:
                 target=settings['target'],  # XXX: should allow optional
                 action=settings.get('action'),
                 cond=settings.get('cond'),
-                # kind=settings.get('type', 'internal'),
+                type=settings.get('type', 'internal'),
             )
         raise InvalidConfig('could not find a valid transition configuration')
 
@@ -83,20 +80,17 @@ class Transition:
             )
         else:
             target = self.target
+
         results = None
         if self.action:
-            Executor = (
-                ctx.datamodel.executor
-                if ctx.datamodel and ctx.datamodel.executor
-                else None
-            )
+            Executor = ctx._datamodel.executor if ctx._datamodel else None
             if Executor:
-                log.info("executed action event for %r", self.event)
                 executor = Executor(ctx)
                 results = tuple(
                     executor.run(command, *args, **kwargs)
                     for command in tuplize(self.action)
                 )
+                log.info("executed action event for %r", self.event)
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
         return results
@@ -113,18 +107,14 @@ class Transition:
         return event
 
     def evaluate(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
-        """Evaluate guards of transition."""
+        """Evaluate conditionss of transition."""
         results = True
         if self.cond:
-            GuardModel = (
-                ctx.datamodel.conditional
-                if ctx.datamodel and ctx.datamodel.conditional
-                else None
-            )
-            if GuardModel:
-                guard = GuardModel(ctx)
+            Condition = ctx._datamodel.conditional if ctx._datamodel else None
+            if Condition:
+                conditions = Condition(ctx)
                 for condition in tuplize(self.cond):
-                    results = guard.check(condition, *args, **kwargs)
+                    results = conditions.check(condition, *args, **kwargs)
                     if results is False:
                         break
         return results
