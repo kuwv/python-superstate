@@ -13,34 +13,32 @@ T = TypeVar('T')
 class ActionBase(ABC):
     """Base class for actions."""
 
-    def __init__(self, ctx: 'StateChart') -> None:
+    def __init__(self, statement: 'ActionType') -> None:
         """Initialize for MyPy."""
-        self.__ctx = ctx
+        self.__statement = statement
 
     @property
-    def ctx(self) -> 'StateChart':
-        """Return instance of StateChart."""
-        return self.__ctx
+    def statement(self) -> 'ActionType':
+        """Return action statement."""
+        return self.__statement
 
     @abstractmethod
-    def run(self, statement: 'ActionType', *args: Any, **kwargs: Any) -> Any:
+    def run(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> Any:
         """Run action."""
 
 
 class ConditionBase(ABC):
     """Base class for conditions."""
 
-    def __init__(self, ctx: 'StateChart') -> None:
+    def __init__(self, statement: 'ConditionType') -> None:
         """Initialize for MyPy."""
-        self.__ctx = ctx
+        self.__statement = statement
 
     @property
-    def ctx(self) -> 'StateChart':
-        """Return instance of StateChart."""
-        return self.__ctx
+    def statement(self) -> 'ConditionType':
+        """Return condition statement."""
+        return self.__statement
 
     @abstractmethod
-    def check(
-        self, statement: 'ConditionType', *args: Any, **kwargs: Any
-    ) -> bool:
+    def check(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition."""

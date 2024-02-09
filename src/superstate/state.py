@@ -300,15 +300,14 @@ class FinalState(State):
         if self.__on_entry:
             Executor = ctx._datamodel.executor if ctx._datamodel else None
             if Executor:
-                executor = Executor(ctx)
-                result = tuple(
-                    executor.run(x)  # , *args, **kwargs)
-                    for x in tuplize(self.__on_entry)
-                )
+                results = []
+                for command in tuplize(self.__on_entry):
+                    executor = Executor(command)
+                    results.append(executor.run(ctx))  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
                 )
-                return result
+                return results
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
@@ -368,31 +367,34 @@ class AtomicState(State):
         if self.__on_entry:
             Executor = ctx._datamodel.executor if ctx._datamodel else None
             if Executor:
-                executor = Executor(ctx)
-                result = tuple(
-                    executor.run(x)  # , *args, **kwargs)
-                    # ctx._datamodel.executor(ctx).run(x)  # , *args, **kwargs)
-                    for x in tuplize(self.__on_entry)
-                )
+                results = []
+                for command in tuplize(self.__on_entry):
+                    executor = Executor(command)
+                    results.append(executor.run(ctx))  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
                 )
-                return result
+                return results
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
             Executor = ctx._datamodel.executor if ctx._datamodel else None
             if Executor:
-                executor = Executor(ctx)
-                result = tuple(
-                    executor.run(x)  # , *args, **kwargs)
-                    for x in tuplize(self.__on_exit)
-                )
+                results = []
+                for command in tuplize(self.__on_exit):
+                    executor = Executor(command)
+                    results.append(executor.run(ctx))  # *args, **kwargs))
+
+                # executor = Executor(ctx)
+                # result = tuple(
+                #     executor.run(x)  # , *args, **kwargs)
+                #     for x in tuplize(self.__on_exit)
+                # )
                 log.info(
                     "executed 'on_exit' state change action for %s", self.name
                 )
-                return result
+                return results
         return None
 
 

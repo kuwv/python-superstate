@@ -5,6 +5,10 @@ class SuperstateException(Exception):
     """Manage general superstate exceptions."""
 
 
+class InvalidAction(SuperstateException):
+    """Manage invalid superstate action exceptions."""
+
+
 class InvalidConfig(SuperstateException):
     """Manage invalid superstate configuration exceptions."""
 

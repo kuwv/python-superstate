@@ -3,10 +3,13 @@
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 
-from superstate.model.expression.base import ActionBase, ConditionBase
+from superstate.exception import InvalidAction
+from superstate.model.expression.base import ActionBase
+
+# from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
-    from superstate.types import ActionType, ConditionType
+    from superstate.machine import StateChart
 
 
 class Activity:
@@ -15,6 +18,40 @@ class Activity:
 
 class Action(ActionBase):
     """Provide executable action from transition."""
+
+    # pylint: disable-next=unused-argument
+    # def __new__(cls, *args: Any, **kwargs: Any) -> 'Action':
+    #     """Return action type."""
+    #     if 'assign' in args:
+    #         pass
+    #     if 'if' in args:
+    #         pass
+    #     if 'elseif' in args:
+    #         pass
+    #     if 'else' in args:
+    #         pass
+    #     if 'foreach' in args:
+    #         pass
+    #     if 'log' in args:
+    #         pass
+    #     if 'raise' in args:
+    #         pass
+
+    #     # for subclass in lookup_subclasses(cls):
+    #     #     if subclass.__name__.lower().startswith(kind):
+    #     #         return super().__new__(subclass)
+    #     return super().__new__(cls)
+
+    # @classmethod
+    # def create(cls, settings: Union['Action', dict]) -> 'Action':
+    #     """Create state from configuration."""
+    #     if isinstance(settings, Action):
+    #         return settings
+    #     if isinstance(settings, dict):
+    #         return cls(**settings)
+    #     raise InvalidConfig(
+    #         'could not find a valid transition configuration'
+    #     )
 
     @staticmethod
     def __run(statement: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -25,30 +62,13 @@ class Action(ActionBase):
 
     def run(
         self,
-        statement: 'ActionType',
+        ctx: 'StateChart',
         *args: Any,
         **kwargs: Any,
     ) -> Tuple[Any, ...]:
         """Run statement when transstatement is processed."""
-        if callable(statement):
-            return self.__run(statement, self.ctx, *args, **kwargs)
-        return self.__run(getattr(self.ctx, statement), *args, **kwargs)
-
-
-class Condition(ConditionBase):
-    """Provide guard condition to determine when transitions should occur."""
-
-    def check(
-        self, statement: 'ConditionType', *args: Any, **kwargs: Any
-    ) -> bool:
-        """Evaluate condition to determine if transition should occur."""
-        if callable(statement):
-            return statement(self.ctx, *args, **kwargs)
-        guard = getattr(self.ctx, statement)
-        if callable(guard):
-            signature = inspect.signature(guard)
-            params = dict(signature.parameters)
-            if len(params.keys()) != 0:
-                return guard(*args, **kwargs)
-            return guard()
-        return bool(guard)
+        if callable(self.statement):
+            return self.__run(self.statement, ctx, *args, **kwargs)
+        if hasattr(ctx, self.statement):
+            return self.__run(getattr(ctx, self.statement), *args, **kwargs)
+        raise InvalidAction('could not process action of transition.')

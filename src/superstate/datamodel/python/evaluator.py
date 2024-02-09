@@ -6,17 +6,17 @@ from typing import TYPE_CHECKING, Any
 from superstate.model.expression.base import ConditionBase
 
 if TYPE_CHECKING:
-    from superstate.types import ConditionType
+    from superstate.machine import StateChart
 
 
 class Condition(ConditionBase):
     """Provide guard condition to determine when transitions should occur."""
 
-    def check(self, cond: 'ConditionType', *args: Any, **kwargs: Any) -> bool:
+    def check(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
-        if callable(cond):
-            return cond(self.ctx, *args, **kwargs)
-        guard = getattr(self.ctx, cond)
+        if callable(self.statement):
+            return self.statement(ctx, *args, **kwargs)
+        guard = getattr(ctx, self.statement)
         if callable(guard):
             signature = inspect.signature(guard)
             params = dict(signature.parameters)

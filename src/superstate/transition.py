@@ -20,11 +20,11 @@ class Transition:
     """Represent statechart transition.
 
     [Definition: A transition matches an event if at least one of its event
-    descriptors matches the event's name. ]
+    descriptors matches the event's name.]
 
     [Definition: An event descriptor matches an event name if its string of
     tokens is an exact match or a prefix of the set of tokens in the event's
-    name. In all cases, the token matching is case sensitive. ]
+    name. In all cases, the token matching is case sensitive.]
     """
 
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
@@ -59,6 +59,11 @@ class Transition:
                 event=settings.get('event', ''),
                 target=settings['target'],  # XXX: should allow optional
                 actions=settings.get('actions'),
+                # actions=(
+                #     list(map(Action.create, settings['actions']))
+                #     if 'actions' in settings
+                #     else []
+                # ),
                 cond=settings.get('cond'),
                 type=settings.get('type', 'internal'),
             )
@@ -86,11 +91,10 @@ class Transition:
         if self.actions:
             Executor = ctx._datamodel.executor if ctx._datamodel else None
             if Executor:
-                executor = Executor(ctx)
-                results = tuple(
-                    executor.run(command, *args, **kwargs)
-                    for command in tuplize(self.actions)
-                )
+                results = []
+                for command in tuplize(self.actions):
+                    executor = Executor(command)
+                    results.append(executor.run(ctx, *args, **kwargs))
                 log.info("executed action event for %r", self.event)
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
@@ -113,9 +117,9 @@ class Transition:
         if self.cond:
             Condition = ctx._datamodel.conditional if ctx._datamodel else None
             if Condition:
-                conditions = Condition(ctx)
-                for condition in tuplize(self.cond):
-                    results = conditions.check(condition, *args, **kwargs)
+                for statement in tuplize(self.cond):
+                    condition = Condition(statement)
+                    results = condition.check(ctx, *args, **kwargs)
                     if results is False:
                         break
         return results
