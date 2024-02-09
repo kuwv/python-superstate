@@ -1,11 +1,13 @@
 """Provide common types for statechart components."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 if TYPE_CHECKING:
     from superstate.model.system import Event
 
 
+@dataclass
 class Assign:
     """Data item providing state data."""
 

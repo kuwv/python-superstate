@@ -31,7 +31,7 @@ from superstate.exception import (
     InvalidTransition,
     ConditionNotSatisfied,
 )
-from superstate.datamodel import DataModel
+from superstate.provider import DataModelProvider
 from superstate.machine import StateChart
 from superstate.model.data import Data
 from superstate.state import (

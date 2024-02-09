@@ -89,7 +89,9 @@ class Transition:
 
         results = None
         if self.actions:
-            Executor = ctx._datamodel.executor if ctx._datamodel else None
+            Executor = (
+                ctx.__datamodel__.executor if ctx.__datamodel__ else None
+            )
             if Executor:
                 results = []
                 for command in tuplize(self.actions):
@@ -115,7 +117,9 @@ class Transition:
         """Evaluate conditionss of transition."""
         results = True
         if self.cond:
-            Condition = ctx._datamodel.conditional if ctx._datamodel else None
+            Condition = (
+                ctx.__datamodel__.conditional if ctx.__datamodel__ else None
+            )
             if Condition:
                 for statement in tuplize(self.cond):
                     condition = Condition(statement)

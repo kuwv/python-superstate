@@ -24,7 +24,8 @@ from superstate.exception import (
     InvalidTransition,
     ConditionNotSatisfied,
 )
-from superstate.datamodel import DataModel
+from superstate.model.data import DataModel
+from superstate.provider import DataModelProvider
 from superstate.state import (
     AtomicState,
     CompositeState,
@@ -49,7 +50,7 @@ class MetaStateChart(type):
     __name__: str
     __initial__: 'Initial'
     __binding__: str = cast(str, Selection('early', 'late'))
-    __datamodel__: Union[Type['DataModel'], str]
+    __datamodel__: Union[Type['DataModelProvider'], str]
     _datamodel: Optional['DataModel']
     _root: 'CompositeState'
 
@@ -70,9 +71,11 @@ class MetaStateChart(type):
         # if binding:
         #     construct.DEFAULT_BINDING = binding
 
-        datamodel_type = attrs.get('__datamodel__', DataModel.enabled)
-        if datamodel_type:
-            DataModel.enabled = datamodel_type
+        datamodel_provider = attrs.get(
+            '__datamodel__', DataModelProvider.enabled
+        )
+        if datamodel_provider:
+            DataModelProvider.enabled = datamodel_provider
 
         datamodel = attrs.pop('datamodel', {})
 
@@ -82,9 +85,8 @@ class MetaStateChart(type):
         obj.__name__ = name
         obj.__initial__ = initial
         obj.__binding__ = binding
-        # obj.__datamodel__ = DataModel.get_datamodel(datamodel_type)
-        obj.__datamodel__ = datamodel_type
-        obj._datamodel = DataModel.create(datamodel)
+        obj.__datamodel__ = DataModelProvider.create(datamodel_provider)
+        obj._datamodel = DataModel(datamodel)
         if root:
             obj._root = root  # type: ignore
         return obj

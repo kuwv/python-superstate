@@ -16,7 +16,7 @@ from typing import (
 )
 
 from superstate.exception import InvalidConfig, InvalidTransition
-from superstate.datamodel import DataModel
+from superstate.model.data import DataModel
 from superstate.transition import Transition
 from superstate.types import Identifier
 from superstate.utils import lookup_subclasses, tuplize
@@ -135,7 +135,7 @@ class State:
                 name=settings.get('name', 'root'),
                 initial=settings.get('initial'),
                 type=settings.get('type'),
-                datamodel=DataModel.create(settings.get('datamodel', {})),
+                datamodel=DataModel(settings.get('datamodel', {})),
                 states=(
                     list(map(State.create, settings['states']))
                     if 'states' in settings
@@ -298,7 +298,9 @@ class FinalState(State):
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
         if self.__on_entry:
-            Executor = ctx._datamodel.executor if ctx._datamodel else None
+            Executor = (
+                ctx.__datamodel__.executor if ctx.__datamodel__ else None
+            )
             if Executor:
                 results = []
                 for command in tuplize(self.__on_entry):
@@ -365,10 +367,13 @@ class AtomicState(State):
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         self._process_transient_state(ctx)
         if self.__on_entry:
-            Executor = ctx._datamodel.executor if ctx._datamodel else None
+            Executor = (
+                ctx.__datamodel__.executor if ctx.__datamodel__ else None
+            )
             if Executor:
                 results = []
                 for command in tuplize(self.__on_entry):
+                    print('meh', ctx.__datamodel__, Executor, type(Executor))
                     executor = Executor(command)
                     results.append(executor.run(ctx))  # *args, **kwargs))
                 log.info(
@@ -379,18 +384,14 @@ class AtomicState(State):
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
-            Executor = ctx._datamodel.executor if ctx._datamodel else None
+            Executor = (
+                ctx.__datamodel__.executor if ctx.__datamodel__ else None
+            )
             if Executor:
                 results = []
                 for command in tuplize(self.__on_exit):
                     executor = Executor(command)
                     results.append(executor.run(ctx))  # *args, **kwargs))
-
-                # executor = Executor(ctx)
-                # result = tuple(
-                #     executor.run(x)  # , *args, **kwargs)
-                #     for x in tuplize(self.__on_exit)
-                # )
                 log.info(
                     "executed 'on_exit' state change action for %s", self.name
                 )

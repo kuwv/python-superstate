@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, NotRequired, Optional, TypedDict, cast
 from superstate.types import Identifier, Selection
 
 if TYPE_CHECKING:
-    from superstate.datamodel import DataModel
+    from superstate.provider import DataModel
 
 
 @dataclass

@@ -13,9 +13,24 @@ T = TypeVar('T')
 class ActionBase(ABC):
     """Base class for actions."""
 
+    # def __init__(
+    #     self, settings: Optional[dict] = None, /, **kwargs: Any
+    # ) -> None:
     def __init__(self, statement: 'ActionType') -> None:
         """Initialize for MyPy."""
         self.__statement = statement
+
+    # @property
+    # def parent(self) -> Optional['CompositeState']:
+    #     """Get parent state."""
+    #     return self.__parent
+
+    # @parent.setter
+    # def parent(self, state: 'CompositeState') -> None:
+    #     if self.__parent is None:
+    #         self.__parent = state
+    #     else:
+    #         raise Exception('cannot change parent for state')
 
     @property
     def statement(self) -> 'ActionType':
