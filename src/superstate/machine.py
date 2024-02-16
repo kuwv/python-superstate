@@ -12,7 +12,6 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
-    Type,
     cast,
 )
 from uuid import UUID
@@ -50,7 +49,7 @@ class MetaStateChart(type):
     __name__: str
     __initial__: 'Initial'
     __binding__: str = cast(str, Selection('early', 'late'))
-    __datamodel__: Union[Type['DataModelProvider'], str]
+    __datamodel__: Union['DataModelProvider', str]
     _datamodel: Optional['DataModel']
     _root: 'CompositeState'
 
@@ -71,6 +70,7 @@ class MetaStateChart(type):
         # if binding:
         #     construct.DEFAULT_BINDING = binding
 
+        # TODO: refactor StateChart methods to providers and inherrit
         datamodel_provider = attrs.get(
             '__datamodel__', DataModelProvider.enabled
         )

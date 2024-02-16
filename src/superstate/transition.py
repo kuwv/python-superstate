@@ -9,7 +9,7 @@ from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.types import ActionTypes, ConditionTypes
+    from superstate.types import ExpressionTypes
 
 log = logging.getLogger(__name__)
 
@@ -30,24 +30,25 @@ class Transition:
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
 
     event: str = cast(str, Identifier(EVENT_PATTERN))
+    cond: Optional['ExpressionTypes']
     target: str = cast(str, Identifier())
-    actions: Optional['ActionTypes']
-    cond: Optional['ConditionTypes']
     type: str = cast(str, Selection('internal', 'external'))
+    actions: Optional['ExpressionTypes']
 
     def __init__(
         self,
         # settings: Optional[Dict[str, Any]] = None,
         # /,
+        # *actions: Any,
         **kwargs: Any,
     ) -> None:
         """Transition from one state to another."""
         # https://www.w3.org/TR/scxml/#events
         self.event = kwargs.get('event', '')
+        self.cond = kwargs.get('cond')  # XXX: should default to bool
         self.target = kwargs['target']
-        self.actions = kwargs.get('actions')
-        self.cond = kwargs.get('cond')
         self.type = kwargs.get('type', 'internal')
+        self.actions = kwargs.get('actions')
 
     @classmethod
     def create(cls, settings: Union['Transition', dict]) -> 'Transition':
@@ -94,9 +95,9 @@ class Transition:
             )
             if Executor:
                 results = []
-                for command in tuplize(self.actions):
-                    executor = Executor(command)
-                    results.append(executor.run(ctx, *args, **kwargs))
+                executor = Executor(ctx)
+                for expression in tuplize(self.actions):
+                    results.append(executor.run(expression, *args, **kwargs))
                 log.info("executed action event for %r", self.event)
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
@@ -118,12 +119,12 @@ class Transition:
         results = True
         if self.cond:
             Condition = (
-                ctx.__datamodel__.conditional if ctx.__datamodel__ else None
+                ctx.__datamodel__.evaluator if ctx.__datamodel__ else None
             )
             if Condition:
-                for statement in tuplize(self.cond):
-                    condition = Condition(statement)
-                    results = condition.check(ctx, *args, **kwargs)
+                condition = Condition(ctx)
+                for guard in tuplize(self.cond):
+                    results = condition.check(guard, *args, **kwargs)
                     if results is False:
                         break
         return results

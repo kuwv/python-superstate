@@ -4,26 +4,30 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Type
 
 from superstate.provider.base import DataModelProvider
-from superstate.provider.python.executor import Action
-from superstate.provider.python.evaluator import Condition
+from superstate.provider.python.executor import Executor
+from superstate.provider.python.evaluator import Evaluator
 
 if TYPE_CHECKING:
-    from superstate.model.expression.base import ActionBase, ConditionBase
+    from superstate.provider.base import EvaluatorBase, ExecutorBase
 
 
-@dataclass
+@dataclass(frozen=True)
 class Default(DataModelProvider):
     """Default data model providing state data."""
 
     # TODO: pull config from system settings within DataModel to configure
     # layout
 
-    @property
-    def conditional(self) -> Type['ConditionBase']:
-        """Get the configured conditional expression language."""
-        return Condition
+    # @property
+    # def dispatcher(self) -> Type['DispatcherBase']:
+    #     """Get the configured dispath expression language."""
 
     @property
-    def executor(self) -> Optional[Type['ActionBase']]:
+    def evaluator(self) -> Type['EvaluatorBase']:
+        """Get the configured evaluator expression language."""
+        return Evaluator
+
+    @property
+    def executor(self) -> Optional[Type['ExecutorBase']]:
         """Get the configured scripting expression language."""
-        return Action
+        return Executor

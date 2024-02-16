@@ -1,11 +1,10 @@
 """Provide common types for statechart components."""
 
 from dataclasses import InitVar, dataclass, field
-from typing import Any, ClassVar, Optional, Sequence, Type, Union
+from typing import Any, ClassVar, Optional, Sequence, Union
 from urllib.request import urlopen
 
 from superstate.exception import InvalidConfig
-from superstate.utils import lookup_subclasses
 
 
 @dataclass
@@ -59,26 +58,16 @@ class DataModel:
     # should support platform-specific, global, and local variables
 
     @classmethod
-    def get_datamodel(cls, name: str) -> Type['DataModel']:
-        """Retrieve a data model implementation."""
-        for datamodel in lookup_subclasses(cls):
-            if name.lower() == datamodel.__name__.lower():
-                return datamodel
-        raise InvalidConfig('could not find DataModel matching name')
-
-    @classmethod
     def create(cls, settings: Union['DataModel', dict]) -> 'DataModel':
         """Return data model for data mapper."""
         if isinstance(settings, DataModel):
             return settings
         if isinstance(settings, dict):
-            datamodel = cls.get_datamodel(cls.enabled.lower())
-            if datamodel:
-                return datamodel(
-                    tuple(map(Data.create, settings['data']))
-                    if 'data' in settings
-                    else []
-                )
+            return cls(
+                tuple(map(Data.create, settings['data']))
+                if 'data' in settings
+                else []
+            )
         raise InvalidConfig('could not find a valid data model configuration')
 
 

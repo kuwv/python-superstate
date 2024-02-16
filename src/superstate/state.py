@@ -21,12 +21,10 @@ from superstate.transition import Transition
 from superstate.types import Identifier
 from superstate.utils import lookup_subclasses, tuplize
 
-# from superstate.model import Identifier
-
 if TYPE_CHECKING:
     from superstate.machine import StateChart
     from superstate.model.data import Data
-    from superstate.types import ActionTypes, Initial
+    from superstate.types import ExpressionTypes, Initial
 
 log = logging.getLogger(__name__)
 
@@ -38,8 +36,8 @@ log = logging.getLogger(__name__)
 #     _type: Optional[str]
 #     _states: List['State']
 #     _transitions: List['State']
-#     _on_entry: Optional['ActionTypes']
-#     _on_exit: Optional['ActionTypes']
+#     _on_entry: Optional['ExpressionTypes']
+#     _on_exit: Optional['ExpressionTypes']
 #
 #     def __new__(
 #         cls,
@@ -100,7 +98,7 @@ class State:
             else:
                 kind = 'parallel'
         # elif _transitions:
-        #     kind = 'conditional'
+        #     kind = 'evaluator'
         else:
             kind = 'atomic'
 
@@ -286,7 +284,7 @@ class HistoryState(PseudoState):
 class FinalState(State):
     """Provide final state for a statechart."""
 
-    __on_entry: Optional['ActionTypes']
+    __on_entry: Optional['ExpressionTypes']
 
     def __init__(self, name: str, **kwargs: Any) -> None:
         # if 'donedata' in kwargs:
@@ -303,9 +301,11 @@ class FinalState(State):
             )
             if Executor:
                 results = []
-                for command in tuplize(self.__on_entry):
-                    executor = Executor(command)
-                    results.append(executor.run(ctx))  # *args, **kwargs))
+                executor = Executor(ctx)
+                for expression in tuplize(self.__on_entry):
+                    results.append(
+                        executor.run(expression)
+                    )  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
                 )
@@ -320,8 +320,8 @@ class AtomicState(State):
     """Provide an atomic state for a statechart."""
 
     __transitions: List['Transition']
-    __on_entry: Optional['ActionTypes']
-    __on_exit: Optional['ActionTypes']
+    __on_entry: Optional['ExpressionTypes']
+    __on_exit: Optional['ExpressionTypes']
 
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
@@ -372,10 +372,11 @@ class AtomicState(State):
             )
             if Executor:
                 results = []
-                for command in tuplize(self.__on_entry):
-                    print('meh', ctx.__datamodel__, Executor, type(Executor))
-                    executor = Executor(command)
-                    results.append(executor.run(ctx))  # *args, **kwargs))
+                executor = Executor(ctx)
+                for expression in tuplize(self.__on_entry):
+                    results.append(
+                        executor.run(expression)
+                    )  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
                 )
@@ -389,9 +390,11 @@ class AtomicState(State):
             )
             if Executor:
                 results = []
-                for command in tuplize(self.__on_exit):
-                    executor = Executor(command)
-                    results.append(executor.run(ctx))  # *args, **kwargs))
+                executor = Executor(ctx)
+                for expression in tuplize(self.__on_exit):
+                    results.append(
+                        executor.run(expression)
+                    )  # *args, **kwargs))
                 log.info(
                     "executed 'on_exit' state change action for %s", self.name
                 )

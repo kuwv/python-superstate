@@ -8,7 +8,7 @@ from dataclasses import dataclass
 #     Type,
 # )
 
-from superstate.provider.base import DataModel
+from superstate.provider.base import DataModelProvider
 
 # from superstate.exception import InvalidConfig
 # from superstate.model.data import Data
@@ -18,9 +18,9 @@ from superstate.provider.base import DataModel
 # from superstate.utils import lookup_subclasses
 
 # if TYPE_CHECKING:
-#     from superstate.model.expression.base import ActionBase, ConditionBase
+#     from superstate.provider.base import ExecutorBase
 
 
-@dataclass
-class ECMAScript(DataModel):
+@dataclass(frozen=True)
+class ECMAScript(DataModelProvider):
     "Data mode providing state data with scripting using ECMAScript." ""

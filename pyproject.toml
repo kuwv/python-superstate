@@ -28,6 +28,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# message passing (grpc, rpc, pydispatcher)
 # io = ["aiohttp[speedups]"]
 # history = ["eventsourcing"]
 ecmascript = ["js2py"]  # "jyserver"

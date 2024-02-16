@@ -6,10 +6,8 @@ from typing import Any, Callable, Optional, Sequence, Type, TypeVar, Union
 
 from superstate.exception import InvalidConfig
 
-ActionType = Union[Callable, str]
-ActionTypes = Union[ActionType, Sequence[ActionType]]
-ConditionType = Union[Callable, str]
-ConditionTypes = Union[ConditionType, Sequence[ConditionType]]
+ExpressionType = Union[Callable, str]
+ExpressionTypes = Union[ExpressionType, Sequence[ExpressionType]]
 Initial = Union[Callable, str]
 
 T = TypeVar('T')
@@ -38,15 +36,15 @@ class Validator(ABC):
 class Selection(Validator):
     """String descriptor with validation."""
 
-    def __init__(self, *items: str) -> None:
+    def __init__(self, *allowed: str) -> None:
         super().__init__()
-        self.__items = items
+        self.allowed = allowed
 
     def validate(self, value: T) -> None:
         if not isinstance(value, str):
             raise ValueError(f"Expected {value!r} to be string")
-        if value not in self.__items:
-            raise ValueError(f"Expected {value!r} to be one of {self.__items}")
+        if value not in self.allowed:
+            raise ValueError(f"Expected {value!r} to be one of {self.allowed}")
 
 
 class Identifier(Validator):
@@ -60,3 +58,19 @@ class Identifier(Validator):
         match = re.match(self.pattern, value, re.IGNORECASE)
         if not match:
             raise InvalidConfig('provided identifier is invalid')
+
+
+# class Static:
+#     """Provide static attribute type."""
+#
+#     def __init__(self) -> None:
+#         """Initialize default value for attribute."""
+#         self.value: Optional[Any] = None
+#
+#     def __get__(
+#         self, obj: object, objtype: Optional[Type[T]] = None
+#     ) -> Optional[T]:
+#         return self.value
+#
+#     def __set__(self, obj: object, value: T) -> None:
+#         self.value = value

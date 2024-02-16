@@ -1,73 +1,82 @@
 """Provide common utils for statechart components."""
 
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Tuple, Union
+from functools import singledispatchmethod
+from typing import TYPE_CHECKING, Any, Callable, Tuple  # Union
 
-from superstate.exception import InvalidAction, InvalidConfig
-from superstate.model.expression.base import ActionBase
+from superstate.exception import InvalidAction  # InvalidConfig
+from superstate.model import Assign, ForEach, Log, Raise
+from superstate.provider.base import ExecutorBase
 
 # from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
+    from superstate.model import Action
+    from superstate.types import ExpressionType
 
 
-class Activity:
-    """Long running action."""
+class Executor(ExecutorBase):
+    """Provide runutor for action expressions."""
 
+    ctx: 'StateChart'
 
-class Action(ActionBase):
-    """Provide executable action from transition."""
+    @singledispatchmethod
+    def exec(self, action: 'Action', *args: Any, **kwargs: Any) -> None:
+        """Evaluate action."""
 
-    # pylint: disable-next=unused-argument
-    # def __new__(cls, *args: Any, **kwargs: Any) -> 'Action':
-    #     """Return action type."""
-    #     if 'assign' in args:
-    #         pass
-    #     if 'if' in args:
-    #         pass
-    #     if 'elseif' in args:
-    #         pass
-    #     if 'else' in args:
-    #         pass
-    #     if 'foreach' in args:
-    #         pass
-    #     if 'log' in args:
-    #         pass
-    #     if 'raise' in args:
-    #         pass
+    @exec.register
+    def _(self, action: Assign) -> None:
+        """Evaluate action."""
 
-    #     # for subclass in lookup_subclasses(cls):
-    #     #     if subclass.__name__.lower().startswith(kind):
-    #     #         return super().__new__(subclass)
-    #     return super().__new__(cls)
+    @exec.register
+    def _(self, action: ForEach) -> None:
+        """Evaluate action."""
 
-    # @classmethod
-    # def create(cls, settings: Union['Action', dict]) -> 'Action':
-    #     """Create state from configuration."""
-    #     if isinstance(settings, Action):
-    #         return settings
-    #     if isinstance(settings, dict):
-    #         print(settings)
-    #         return cls(**settings)
-    #     raise InvalidConfig('could not find a valid transition configuration')
+    @exec.register
+    def _(self, action: Log) -> None:
+        """Evaluate action."""
+
+    @exec.register
+    def _(self, action: Raise) -> None:
+        """Evaluate action."""
+
+    def execute(self, expression: str) -> None:
+        """Evaluate expression."""
+        local = {
+            x: (
+                getattr(self.ctx, x)
+                if callable(x)
+                else lambda v, x=x: setattr(self.ctx, x, v)
+            )
+            for x in dir(self.ctx)
+            if not x.startswith('_') and x not in ('ctx', 'run')
+        }
+
+        code = compile(expression, '<string>', 'exec')
+
+        for name in code.co_names:
+            if name not in local:
+                raise NameError(f'Use of {name} not allowed')
+        # pylint: disable-next=exec-used
+        exec(code, {'__builtins__': {}}, local)
 
     @staticmethod
-    def __run(statement: Callable, *args: Any, **kwargs: Any) -> Any:
-        signature = inspect.signature(statement)
+    def __run(expression: Callable, *args: Any, **kwargs: Any) -> Any:
+        signature = inspect.signature(expression)
         if len(signature.parameters.keys()) != 0:
-            return statement(*args, **kwargs)
-        return statement()
+            return expression(*args, **kwargs)
+        return expression()
 
     def run(
         self,
-        ctx: 'StateChart',
+        expression: 'ExpressionType',
         *args: Any,
         **kwargs: Any,
     ) -> Tuple[Any, ...]:
-        """Run statement when transstatement is processed."""
-        if callable(self.statement):
-            return self.__run(self.statement, ctx, *args, **kwargs)
-        if hasattr(ctx, self.statement):
-            return self.__run(getattr(ctx, self.statement), *args, **kwargs)
-        raise InvalidAction('could not process action of transition.')
+        """Run expression when transexpression is processed."""
+        if callable(expression):
+            return self.__run(expression, self.ctx, *args, **kwargs)
+        if hasattr(self.ctx, expression):
+            return self.__run(getattr(self.ctx, expression), *args, **kwargs)
+        raise InvalidAction('could not process action type.')
