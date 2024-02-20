@@ -296,15 +296,13 @@ class FinalState(State):
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
         if self.__on_entry:
-            Executor = (
-                ctx.__datamodel__.executor if ctx.__datamodel__ else None
-            )
+            Executor = ctx.__datamodel__
             if Executor:
                 results = []
                 executor = Executor(ctx)
                 for expression in tuplize(self.__on_entry):
                     results.append(
-                        executor.run(expression)
+                        executor.exec(expression)
                     )  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
@@ -367,15 +365,13 @@ class AtomicState(State):
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         self._process_transient_state(ctx)
         if self.__on_entry:
-            Executor = (
-                ctx.__datamodel__.executor if ctx.__datamodel__ else None
-            )
+            Executor = ctx.__datamodel__
             if Executor:
                 results = []
                 executor = Executor(ctx)
                 for expression in tuplize(self.__on_entry):
                     results.append(
-                        executor.run(expression)
+                        executor.exec(expression)
                     )  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
@@ -385,15 +381,13 @@ class AtomicState(State):
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
-            Executor = (
-                ctx.__datamodel__.executor if ctx.__datamodel__ else None
-            )
+            Executor = ctx.__datamodel__
             if Executor:
                 results = []
                 executor = Executor(ctx)
                 for expression in tuplize(self.__on_exit):
                     results.append(
-                        executor.run(expression)
+                        executor.exec(expression)
                     )  # *args, **kwargs))
                 log.info(
                     "executed 'on_exit' state change action for %s", self.name

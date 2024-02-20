@@ -1,12 +1,16 @@
 """Provide common types for statechart components."""
 
-from typing import Any, Dict, Union
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Dict, Union
 
 from superstate.exception import InvalidConfig
 from superstate.utils import lookup_subclasses
 
+if TYPE_CHECKING:
+    from superstate.provider import Provider
 
-class Action:
+
+class Action(ABC):
     """Base class for actions."""
 
     @classmethod
@@ -20,3 +24,7 @@ class Action:
                     if subclass.__name__.lower() == key.lower():
                         return subclass(**values)
         raise InvalidConfig('could not find a valid action configuration')
+
+    @abstractmethod
+    def callback(self, provider: 'Provider') -> None:
+        """Provide callback for language provider."""

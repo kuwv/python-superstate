@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    Type,
     cast,
 )
 from uuid import UUID
@@ -24,7 +25,7 @@ from superstate.exception import (
     ConditionNotSatisfied,
 )
 from superstate.model.data import DataModel
-from superstate.provider import DataModelProvider
+from superstate.provider import Provider
 from superstate.state import (
     AtomicState,
     CompositeState,
@@ -49,12 +50,12 @@ class MetaStateChart(type):
     __name__: str
     __initial__: 'Initial'
     __binding__: str = cast(str, Selection('early', 'late'))
-    __datamodel__: Union['DataModelProvider', str]
+    __datamodel__: Union[Type['Provider'], str]
     _datamodel: Optional['DataModel']
     _root: 'CompositeState'
 
     def __new__(
-        cls,
+        mcs,
         name: str,
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
@@ -71,21 +72,20 @@ class MetaStateChart(type):
         #     construct.DEFAULT_BINDING = binding
 
         # TODO: refactor StateChart methods to providers and inherrit
-        datamodel_provider = attrs.get(
-            '__datamodel__', DataModelProvider.enabled
-        )
-        if datamodel_provider:
-            DataModelProvider.enabled = datamodel_provider
+        provider = attrs.get('__datamodel__', Provider.enabled)
+        if provider:
+            Provider.enabled = provider
 
         datamodel = attrs.pop('datamodel', {})
 
         root = State.create(attrs.pop('state')) if 'state' in attrs else None
 
-        obj = super().__new__(cls, name, bases, attrs)
+        obj = super().__new__(mcs, name, bases, attrs)
         obj.__name__ = name
         obj.__initial__ = initial
         obj.__binding__ = binding
-        obj.__datamodel__ = DataModelProvider.create(datamodel_provider)
+        # obj.__datamodel__ = Provider.create(provider)
+        obj.__datamodel__ = Provider.get_provider(provider)
         obj._datamodel = DataModel(datamodel)
         if root:
             obj._root = root  # type: ignore
@@ -117,6 +117,7 @@ class StateChart(metaclass=MetaStateChart):
         # *args: Any,
         **kwargs: Any,
     ) -> None:
+        # TODO: switch to dictConfig
         if 'logging_enabled' in kwargs and kwargs['logging_enabled']:
             handler = logging.StreamHandler()
             formatter = kwargs.pop(

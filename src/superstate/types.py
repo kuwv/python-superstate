@@ -2,7 +2,8 @@
 
 import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
-from typing import Any, Callable, Optional, Sequence, Type, TypeVar, Union
+from collections.abc import Callable
+from typing import Any, Optional, Sequence, Type, TypeVar, Union
 
 from superstate.exception import InvalidConfig
 
@@ -36,6 +37,7 @@ class Validator(ABC):
 class Selection(Validator):
     """String descriptor with validation."""
 
+    # TODO: consider dynamic enum instead
     def __init__(self, *allowed: str) -> None:
         super().__init__()
         self.allowed = allowed

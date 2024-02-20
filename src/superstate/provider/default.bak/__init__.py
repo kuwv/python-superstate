@@ -1,16 +1,18 @@
 """Provide common types for statechart components."""
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Type
 
 from superstate.provider.base import Provider
-from superstate.provider.python.executor import Executor
-from superstate.provider.python.evaluator import Evaluator
+from superstate.provider.default.executor import Executor
+from superstate.provider.default.evaluator import Evaluator
 
 if TYPE_CHECKING:
     from superstate.provider.base import EvaluatorBase, ExecutorBase
 
 
-class Python(Provider):
+@dataclass(frozen=True)
+class Default(Provider):
     """Default data model providing state data."""
 
     # TODO: pull config from system settings within DataModel to configure

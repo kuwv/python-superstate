@@ -1,16 +1,14 @@
 """Provide common types for statechart components."""
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Type
 
-from superstate.provider.base import DataModelProvider
+from superstate.provider.base import Provider
 
 if TYPE_CHECKING:
     from superstate.provider.base import ExecutorBase
 
 
-@dataclass(frozen=True)
-class Null(DataModelProvider):
+class Null(Provider):
     """Data model providing state data without any scripting capabilities."""
 
     @property

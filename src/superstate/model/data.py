@@ -1,7 +1,7 @@
 """Provide common types for statechart components."""
 
 from dataclasses import InitVar, dataclass, field
-from typing import Any, ClassVar, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 from urllib.request import urlopen
 
 from superstate.exception import InvalidConfig
@@ -49,13 +49,15 @@ class Data:
         raise InvalidConfig('could not find a valid data configuration')
 
 
-@dataclass
 class DataModel:
     """Instantiate state types from class metadata."""
 
-    enabled: ClassVar[str] = 'default'
-    data: Sequence['Data'] = field(default_factory=list)
-    # should support platform-specific, global, and local variables
+    enabled: str = 'default'
+
+    def __init__(self, data: Sequence['Data']) -> None:
+        """Initialize datamodel."""
+        # should support platform-specific, global, and local variables
+        self.data = data
 
     @classmethod
     def create(cls, settings: Union['DataModel', dict]) -> 'DataModel':

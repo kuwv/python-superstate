@@ -37,3 +37,17 @@ DEFAULT_DATAMODEL: Dict[str, Any] = {
         ),
     )
 }
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {'simple': {'format': '%(levelname)s: %(message)s'}},
+    'handlers': {
+        'stdout': {
+            'class': 'logging.StramHandler',
+            'formatter': 'simple',
+            'stream': 'ext://sys.stdout',
+        }
+    },
+    'loggers': {'root': {'level': 'DEBUG', 'handlers': ['stdout']}},
+}

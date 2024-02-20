@@ -1,14 +1,12 @@
 """Provide common types for statechart components."""
 
-from dataclasses import dataclass
-
 # from typing import (
 #     TYPE_CHECKING,
 #     Optional,
 #     Type,
 # )
 
-from superstate.provider.base import DataModelProvider
+from superstate.provider.base import Provider
 
 # from superstate.exception import InvalidConfig
 # from superstate.model.data import Data
@@ -21,6 +19,5 @@ from superstate.provider.base import DataModelProvider
 #     from superstate.provider.base import ExecutorBase
 
 
-@dataclass(frozen=True)
-class ECMAScript(DataModelProvider):
+class ECMAScript(Provider):
     "Data mode providing state data with scripting using ECMAScript." ""

@@ -1,16 +1,14 @@
 """Provide common utils for statechart components."""
 
-import inspect
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, Callable, Union
+from typing import TYPE_CHECKING, Any, Union
 
-from superstate.model import If, ElseIf, Else
+from superstate.model import If, ElseIf  # Else
 from superstate.provider.base import EvaluatorBase
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
     from superstate.model import Action
-    from superstate.types import ExpressionTypes
 
 
 class Evaluator(EvaluatorBase):
@@ -42,25 +40,9 @@ class Evaluator(EvaluatorBase):
     @eval.register
     def _(self, action: Union[If, ElseIf]) -> bool:
         """Evaluate action."""
-        return True
+        return self.eval(action.cond)
 
-    @eval.register
-    def _(self, action: Else) -> bool:
-        """Evaluate action."""
-        print(self, action)
-        return True
-
-    def check(
-        self, action: 'ExpressionTypes', *args: Any, **kwargs: Any
-    ) -> bool:
-        """Evaluate condition to determine if transition should occur."""
-        if callable(action):
-            return action(self.ctx, *args, **kwargs)
-        guard = getattr(self.ctx, action)
-        if callable(guard):
-            signature = inspect.signature(guard)
-            params = dict(signature.parameters)
-            if len(params.keys()) != 0:
-                return guard(*args, **kwargs)
-            return guard()
-        return bool(guard)
+    # @eval.register
+    # def _(self, action: Else) -> bool:
+    #     """Evaluate action."""
+    #     return True
