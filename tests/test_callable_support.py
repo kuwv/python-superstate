@@ -26,13 +26,13 @@ class JumperGuy(StateChart):
                 'transitions': [
                     {
                         'event': 'jump',
+                        'cond': (
+                            lambda jumper: jumper.append('jump:cond') is None
+                        ),
                         'target': 'falling',
                         'actions': [
                             lambda jumper: jumper.append('jump:action')
                         ],
-                        'cond': (
-                            lambda jumper: jumper.append('jump:cond') is None
-                        ),
                     }
                 ],
                 'on_entry': (lambda jumper: jumper.append('looking:on_entry')),
@@ -43,7 +43,8 @@ class JumperGuy(StateChart):
     }
 
     @staticmethod
-    def append(text) -> None:
+    def append(text: str) -> None:
+        """Append a state machine action to test case."""
         footsteps.append(text)
 
 
@@ -75,15 +76,22 @@ def test_deny_state_change_if_guard_callable_returns_false() -> None:
                         {
                             'event': 'open',
                             'target': 'open',
-                            'cond': lambda d: not door.locked,
+                            'cond': lambda door: not door.locked,
                         }
                     ],
                 },
             ],
         }
 
-        def locked(self) -> None:
-            return self.locked
+        @property
+        def locked(self) -> bool:
+            """Check if door is locked."""
+            return self.__locked
+
+        @locked.setter
+        def locked(self, locked: bool) -> None:
+            """Check if door is locked."""
+            self.__locked = locked
 
     door = Door()
     door.locked = True

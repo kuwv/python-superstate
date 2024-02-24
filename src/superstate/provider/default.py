@@ -6,7 +6,14 @@ from functools import singledispatchmethod
 from typing import Any, Union
 
 from superstate.exception import InvalidAction  # InvalidConfig
-from superstate.model import Action, Assign, ElseIf, If
+from superstate.model import (
+    # Action,
+    Assign,
+    Conditional,
+    # ElseIf,
+    # If,
+    Script,
+)
 from superstate.provider.base import Provider
 
 
@@ -16,46 +23,39 @@ class Default(Provider):
     # TODO: pull config from system settings within DataModel to configure
     # layout
 
-    # @property
-    # def dispatcher(self) -> Type['DispatcherBase']:
+    # @singledispatchmethod
+    # def dispatch(self) -> Type['DispatcherBase']:
     #     """Get the configured dispath expression language."""
 
     @singledispatchmethod
     def eval(
         self,
-        action: Union[Action, Callable, str],
+        action: Union[Callable, str],
         *args: Any,
         **kwargs: Any,
     ) -> bool:
         raise NotImplementedError(
-            'datamodel cannot evaluate provided action type'
+            'datamodel cannot evaluate provided action type',
+            type(action),
+            action,
         )
 
     @eval.register
-    def _(self, action: Union[If, ElseIf]) -> bool:
+    def _(self, action: bool) -> bool:
         """Evaluate condition to determine if transition should occur."""
-        allowed = {
-            x: getattr(self.ctx, x)
-            for x in dir(self.ctx)
-            if not x.startswith('_') and x not in ('ctx', 'eval')
-        }
-
-        code = compile(action.cond, '<string>', 'eval')
-
-        for name in code.co_names:
-            if name not in allowed:
-                raise NameError(f'Use of {name} not allowed')
-        # pylint: disable-next=eval-used
-        return eval(code, {'__builtins__': {}}, allowed)
+        # print('--eval call--', action)
+        return action
 
     @eval.register
     def _(self, action: Callable, *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
+        # print('--eval call--', action)
         return action(self.ctx, *args, **kwargs)
 
     @eval.register
     def _(self, action: str, *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
+        # print('--eval str--', action)
         guard = getattr(self.ctx, action)
         if callable(guard):
             signature = inspect.signature(guard)
@@ -65,16 +65,26 @@ class Default(Provider):
             return guard()
         return bool(guard)
 
+    # @eval.register
+    # def _(self, action: Union[If, ElseIf]) -> bool:
+    #     """Evaluate condition to determine if transition should occur."""
+    #     code = compile(action.cond, '<string>', 'eval')
+    #     for name in code.co_names:
+    #         if name not in allowed:
+    #             raise NameError(f'Use of {name} not allowed')
+    #     # pylint: disable-next=eval-used
+    #     return eval(code, self.globals, self.locals)
+
     @singledispatchmethod
     def exec(
         self,
-        action: Union[Action, Callable, str],
+        action: Union[Script, str],
         *args: Any,
         **kwargs: Any,
     ) -> None:
         """Evaluate action."""
         raise NotImplementedError(
-            'datamodel cannot execute provided action type'
+            'datamodel cannot execute provided action type', type(action)
         )
 
     @staticmethod
@@ -85,43 +95,22 @@ class Default(Provider):
         return action()
 
     @exec.register
-    def _(
-        self,
-        action: Assign,
-        # *args: Any,
-        # **kwargs: Any,
-    ) -> Any:
+    def _(self, action: Assign) -> None:
         """Run action when transaction is processed."""
-        if action.expr is not None and type(action.expr) in dir(__builtins__):
-            local = {
-                x: (
-                    getattr(self.ctx, x)
-                    if callable(x)
-                    else lambda v, x=x: setattr(self.ctx, x, v)
-                )
-                for x in dir(self.ctx)
-                if not x.startswith('_') and x not in ('ctx', 'run')
-            }
-
-            code = compile(action.expr, '<string>', 'exec')
-
-            for name in code.co_names:
-                if name not in local:
-                    raise NameError(f'Use of {name} not allowed')
-            # pylint: disable-next=exec-used
-            exec(code, {'__builtins__': {}}, local)
-        else:
-            self.ctx[action.location] = action.expr
+        setattr(self.ctx, action.location, action)
 
     @exec.register
     def _(
         self,
-        action: Callable,
+        action: Script,
         *args: Any,
         **kwargs: Any,
     ) -> Any:
         """Run action when transaction is processed."""
-        return self.__exec(action, self.ctx, *args, **kwargs)
+        # print('--exec script--', action)
+        if callable(action.src):
+            return self.__exec(action.src, self.ctx, *args, **kwargs)
+        return self.exec(action.src, *args, **kwargs)
 
     @exec.register
     def _(
@@ -130,6 +119,25 @@ class Default(Provider):
         *args: Any,
         **kwargs: Any,
     ) -> Any:
+        """Run action when transaction is processed."""
+        # print('--exec str--', action)
         if hasattr(self.ctx, action):
             return self.__exec(getattr(self.ctx, action), *args, **kwargs)
         raise InvalidAction('could not process action type.')
+
+    # @exec.register
+    # def _(
+    #     self,
+    #     action: str,
+    #     # *args: Any,
+    #     # **kwargs: Any,
+    # ) -> Optional[Any]:
+    #     """Run action when transaction is processed."""
+    #     if action is not None and type(action) in dir(__builtins__):
+    #         code = compile(action, '<string>', 'exec')
+    #         for name in code.co_names:
+    #             if name not in local:
+    #                 raise NameError(f'Use of {name} not allowed')
+    #         # pylint: disable-next=exec-used
+    #         return exec(code, self.globals, self.locals)
+    #     return self.ctx[action.location] = action

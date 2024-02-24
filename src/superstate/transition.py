@@ -4,12 +4,13 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from superstate.exception import InvalidConfig
+from superstate.model import Action, Conditional
 from superstate.types import Selection, Identifier
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.types import ExpressionTypes
+    from superstate.types import ActionTypes
 
 log = logging.getLogger(__name__)
 
@@ -30,16 +31,15 @@ class Transition:
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
 
     event: str = cast(str, Identifier(EVENT_PATTERN))
-    cond: Optional['ExpressionTypes']
+    cond: Optional['ActionTypes']
     target: str = cast(str, Identifier())
     type: str = cast(str, Selection('internal', 'external'))
-    actions: Optional['ExpressionTypes']
+    actions: Optional['ActionTypes']
 
     def __init__(
         self,
         # settings: Optional[Dict[str, Any]] = None,
         # /,
-        # *actions: Any,
         **kwargs: Any,
     ) -> None:
         """Transition from one state to another."""
@@ -58,15 +58,18 @@ class Transition:
         if isinstance(settings, dict):
             return cls(
                 event=settings.get('event', ''),
+                cond=(
+                    tuple(map(Conditional.create, tuplize(settings['cond'])))
+                    if 'cond' in settings
+                    else []
+                ),
                 target=settings['target'],  # XXX: should allow optional
-                actions=settings.get('actions'),
-                # actions=(
-                #     list(map(Action.create, settings['actions']))
-                #     if 'actions' in settings
-                #     else []
-                # ),
-                cond=settings.get('cond'),
                 type=settings.get('type', 'internal'),
+                actions=(
+                    tuple(map(Action.create, tuplize(settings['actions'])))
+                    if 'actions' in settings
+                    else []
+                ),
             )
         raise InvalidConfig('could not find a valid transition configuration')
 
@@ -95,6 +98,8 @@ class Transition:
                 results = []
                 executor = Executor(ctx)
                 for expression in tuplize(self.actions):
+                    # TODO: switch to run()
+                    print('+++', type(expression), expression)
                     results.append(executor.exec(expression, *args, **kwargs))
                 log.info("executed action event for %r", self.event)
         ctx.change_state(target)
@@ -120,7 +125,7 @@ class Transition:
             if Condition:
                 condition = Condition(ctx)
                 for guard in tuplize(self.cond):
-                    result = condition.eval(guard, *args, **kwargs)
+                    result = condition.eval(guard.cond, *args, **kwargs)
                     if result is False:
                         break
         return result

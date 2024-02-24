@@ -15,7 +15,12 @@ from typing import (
     cast,
 )
 
-from superstate.exception import InvalidConfig, InvalidTransition
+from superstate.exception import (
+    InvalidConfig,
+    InvalidTransition,
+    SuperstateException,
+)
+from superstate.model.base import Action
 from superstate.model.data import DataModel
 from superstate.transition import Transition
 from superstate.types import Identifier
@@ -24,7 +29,7 @@ from superstate.utils import lookup_subclasses, tuplize
 if TYPE_CHECKING:
     from superstate.machine import StateChart
     from superstate.model.data import Data
-    from superstate.types import ExpressionTypes, Initial
+    from superstate.types import ActionTypes, Initial
 
 log = logging.getLogger(__name__)
 
@@ -36,8 +41,8 @@ log = logging.getLogger(__name__)
 #     _type: Optional[str]
 #     _states: List['State']
 #     _transitions: List['State']
-#     _on_entry: Optional['ExpressionTypes']
-#     _on_exit: Optional['ExpressionTypes']
+#     _on_entry: Optional['ActionTypes']
+#     _on_exit: Optional['ActionTypes']
 #
 #     def __new__(
 #         cls,
@@ -144,8 +149,16 @@ class State:
                     if 'transitions' in settings
                     else []
                 ),
-                on_entry=settings.get('on_entry'),
-                on_exit=settings.get('on_exit'),
+                on_entry=(
+                    tuple(map(Action.create, tuplize(settings['on_entry'])))
+                    if 'on_entry' in settings
+                    else None
+                ),
+                on_exit=(
+                    tuple(map(Action.create, tuplize(settings['on_exit'])))
+                    if 'on_exit' in settings
+                    else []
+                ),
             )
         elif isinstance(settings, str):
             obj = State(settings)
@@ -223,7 +236,7 @@ class State:
         if self.__parent is None:
             self.__parent = state
         else:
-            raise Exception('cannot change parent for state')
+            raise SuperstateException('cannot change parent for state')
 
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-entry tasks."""
@@ -284,7 +297,7 @@ class HistoryState(PseudoState):
 class FinalState(State):
     """Provide final state for a statechart."""
 
-    __on_entry: Optional['ExpressionTypes']
+    __on_entry: Optional['ActionTypes']
 
     def __init__(self, name: str, **kwargs: Any) -> None:
         # if 'donedata' in kwargs:
@@ -300,7 +313,7 @@ class FinalState(State):
             if Executor:
                 results = []
                 executor = Executor(ctx)
-                for expression in tuplize(self.__on_entry):
+                for expression in self.__on_entry:
                     results.append(
                         executor.exec(expression)
                     )  # *args, **kwargs))
@@ -318,8 +331,8 @@ class AtomicState(State):
     """Provide an atomic state for a statechart."""
 
     __transitions: List['Transition']
-    __on_entry: Optional['ExpressionTypes']
-    __on_exit: Optional['ExpressionTypes']
+    __on_entry: Optional['ActionTypes']
+    __on_exit: Optional['ActionTypes']
 
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
@@ -335,6 +348,7 @@ class AtomicState(State):
         setattr(
             self,
             transition.event if transition.event != '' else '_auto_',
+            # pylint: disable-next=unnecessary-dunder-call
             transition.callback().__get__(self, self.__class__),
         )
 
@@ -369,7 +383,7 @@ class AtomicState(State):
             if Executor:
                 results = []
                 executor = Executor(ctx)
-                for expression in tuplize(self.__on_entry):
+                for expression in self.__on_entry:
                     results.append(
                         executor.exec(expression)
                     )  # *args, **kwargs))
@@ -385,7 +399,7 @@ class AtomicState(State):
             if Executor:
                 results = []
                 executor = Executor(ctx)
-                for expression in tuplize(self.__on_exit):
+                for expression in self.__on_exit:
                     results.append(
                         executor.exec(expression)
                     )  # *args, **kwargs))

@@ -33,7 +33,7 @@ from superstate.exception import (
 )
 from superstate.provider import Provider
 from superstate.machine import StateChart
-from superstate.model.data import Data
+from superstate.model import Data, DataModel, DoneData
 from superstate.state import (
     AtomicState,
     CompositeState,

@@ -3,12 +3,16 @@
 import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from collections.abc import Callable
-from typing import Any, Optional, Sequence, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Type, TypeVar, Union
 
 from superstate.exception import InvalidConfig
 
+if TYPE_CHECKING:
+    from superstate.model import Action
+
 ExpressionType = Union[Callable, str]
-ExpressionTypes = Union[ExpressionType, Sequence[ExpressionType]]
+ExpressionTypes = Sequence['ExpressionType']
+ActionTypes = Sequence['Action']
 Initial = Union[Callable, str]
 
 T = TypeVar('T')
