@@ -1,12 +1,14 @@
 """Provide common types for statechart components."""
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
 from superstate.model.base import Action, Conditional
+from superstate.types import Expression
 
 if TYPE_CHECKING:
     from superstate.provider import Provider
+    from superstate.model.base import ExecutableContent
     from superstate.model.system import Event
 
 
@@ -15,11 +17,15 @@ class Assign(Action):
     """Data item providing state data."""
 
     location: str
-    expr: Optional[str] = None  # expression
+    expr: Optional[Expression] = None  # expression
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> None:
         """Provide callback from datamodel provider."""
-        provider.exec(self)
+        provider.exec(self.expr, *args, **kwargs)
+        # print(result)
+        # setattr(self.ctx, expr.location, expr)
 
 
 @dataclass
@@ -33,7 +39,9 @@ class ForEach(Action):
     def __post_init__(self) -> None:
         self.array = [Action.create(x) for x in self.array]
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> None:
         """Provide callback from datamodel provider."""
 
 
@@ -41,10 +49,12 @@ class ForEach(Action):
 class Log(Action):
     """Data item providing state data."""
 
-    expr: str  # expression
+    expr: Expression
     label: Optional[str] = None
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> None:
         """Provide callback from datamodel provider."""
 
 
@@ -54,7 +64,9 @@ class Raise(Action):
 
     event: 'Event'
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> None:
         """Provide callback from datamodel provider."""
 
 
@@ -62,27 +74,33 @@ class Raise(Action):
 class Script(Action):
     """Data model providing para data for external services."""
 
+    # XXX: should include buffer or replace string
     src: Union[Callable, str]
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
-        provider.exec(self.src)
+        return provider.exec(self.src, *args, **kwargs)
 
 
 @dataclass
 class If(Conditional):
     """Data item providing state data."""
 
-    actions: Sequence[Action]
+    actions: Sequence['ExecutableContent']
 
     def __post_init__(self) -> None:
         self.actions = [Action.create(x) for x in self.actions]
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
-        if provider.eval(self):
+        if provider.eval(self.cond, *args, **kwargs):
             for action in self.actions:
-                provider.run(action)
+                return provider.handle(action, *args, **kwargs)
+        return None
 
 
 @dataclass
@@ -100,7 +118,9 @@ class Else(Conditional):
         self.cond = True
         self.actions = [Action.create(x) for x in self.actions]
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> None:
         """Provide callback from datamodel provider."""
         for action in self.actions:
-            provider.run(action)
+            provider.handle(action)

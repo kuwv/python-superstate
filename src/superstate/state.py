@@ -315,7 +315,7 @@ class FinalState(State):
                 executor = Executor(ctx)
                 for expression in self.__on_entry:
                     results.append(
-                        executor.exec(expression)
+                        executor.handle(expression)
                     )  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
@@ -385,7 +385,7 @@ class AtomicState(State):
                 executor = Executor(ctx)
                 for expression in self.__on_entry:
                     results.append(
-                        executor.exec(expression)
+                        executor.handle(expression)
                     )  # *args, **kwargs))
                 log.info(
                     "executed 'on_entry' state change action for %s", self.name
@@ -401,7 +401,7 @@ class AtomicState(State):
                 executor = Executor(ctx)
                 for expression in self.__on_exit:
                     results.append(
-                        executor.exec(expression)
+                        executor.handle(expression)
                     )  # *args, **kwargs))
                 log.info(
                     "executed 'on_exit' state change action for %s", self.name

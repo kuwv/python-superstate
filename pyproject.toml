@@ -26,9 +26,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Topic :: Software Development :: Libraries",
 ]
-# dependencies = [
-#    "structlog",
-# ]
+dependencies = [
+   "RestrictedPython",
+   # "structlog",
+]
 
 [project.optional-dependencies]
 # message passing (grpc, rpc, pydispatcher)
@@ -87,8 +88,10 @@ fail-under = 9.0
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
-    "R0903",
     "C0103",
+    "R0903",
+    "W0122",
+    "W0123",
     "W0715",
 ]
 

@@ -66,6 +66,18 @@ class Identifier(Validator):
             raise InvalidConfig('provided identifier is invalid')
 
 
+class Expression(Validator):
+    """Validate valueession."""
+
+    def validate(self, value: 'ExpressionType') -> None:
+        """Validate valueession."""
+        if isinstance(value, str):
+            if '\n' in value:
+                raise InvalidConfig('expressions cannot contian newline')
+            if ';' in value:
+                raise InvalidConfig('expressions cannot be chained')
+
+
 # class Static:
 #     """Provide static attribute type."""
 #

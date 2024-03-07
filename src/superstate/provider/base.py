@@ -3,14 +3,23 @@
 # import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from superstate.exception import InvalidConfig
 from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.model.base import Action
+    from superstate.model.base import ExecutableContent
 
 T = TypeVar('T')
 
@@ -19,12 +28,12 @@ T = TypeVar('T')
 #     """Provide condition using 'In()' predicate to determine transition."""
 #
 #     @classmethod
-#     def eval(cls, action: 'Action') -> bool:
+#     def eval(cls, expr: 'ExecutableContent') -> bool:
 #         """Evaluate condition to determine if transition should occur."""
-#         if isinstance(action, str):
+#         if isinstance(expr, str):
 #             match = re.match(
 #                 r'^in\([\'\"](?P<state>.*)[\'\"]\)$',
-#                 action,
+#                 expr,
 #                 re.IGNORECASE,
 #             )
 #             if match:
@@ -47,7 +56,7 @@ class Provider(ABC):
 
     def __init__(self, ctx: 'StateChart') -> None:
         """Initialize for MyPy."""
-        self.__ctx = ctx
+        self.ctx = ctx
 
     @classmethod
     def get_provider(cls, name: str) -> Type['Provider']:
@@ -72,46 +81,48 @@ class Provider(ABC):
     #         'could not find a valid data model configuration'
     #     )
 
-    @property
-    def ctx(self) -> 'StateChart':
-        """Return instance of StateChart."""
-        return self.__ctx
-
-    @property
-    def locals(self) -> Dict[str, Any]:
-        """Get local attributes and methods available for eval and exec."""
-        return {
-            x: (
-                getattr(self.ctx, x)
-                if callable(x)
-                else lambda v, x=x: setattr(self.ctx, x, v)
-            )
-            for x in dir(self.ctx)
-            if not x.startswith('_') and x not in ('ctx', 'run')
-        }
+    # @property
+    # def ctx(self) -> 'StateChart':
+    #     """Return instance of StateChart."""
+    #     return self.__ctx
 
     @property
     def globals(self) -> Dict[str, Any]:
         """Get global attributes and methods available for eval and exec."""
         return {'__builtins__': {}}
 
+    @property
+    def locals(self) -> Dict[str, Any]:
+        """Get local attributes and methods available for eval and exec."""
+        return {
+            x: getattr(self.ctx, x)
+            for x in dir(self.ctx)
+            if not x.startswith('__')
+        }
+
     # @singledispatchmethod
     # @abstractmethod
-    # def dispatch(self, action: 'Action', *args: Any, **kwargs: Any) -> bool:
-    #     """Dispatch action."""
+    # def dispatch(
+    #     self, expr: 'ExecutableContent', *args: Any, **kwargs: Any
+    # ) -> bool:
+    #     """Dispatch expression."""
 
     @singledispatchmethod
     @abstractmethod
-    def eval(self, action: 'Action', *args: Any, **kwargs: Any) -> bool:
-        """Evaluate action."""
+    def eval(
+        self, expr: Union[Callable, bool, str], *args: Any, **kwargs: Any
+    ) -> bool:
+        """Evaluate expression."""
 
     @singledispatchmethod
     @abstractmethod
     def exec(
-        self, action: 'Action', *args: Any, **kwargs: Any
+        self, expr: Union[Callable, str], *args: Any, **kwargs: Any
     ) -> Optional[Any]:
-        """Execute action."""
+        """Execute expression."""
 
-    def run(self, action: 'Action') -> None:
-        """Accept action callbacks."""
-        action.callback(self)
+    def handle(
+        self, expr: 'ExecutableContent', *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
+        """Accept callbacks for executable content."""
+        return expr.callback(self, *args, **kwargs)

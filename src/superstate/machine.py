@@ -20,6 +20,7 @@ from uuid import UUID
 from superstate import config
 from superstate.exception import (
     InvalidConfig,
+    InvalidPath,
     InvalidState,
     InvalidTransition,
     ConditionNotSatisfied,
@@ -198,7 +199,7 @@ class StateChart(metaclass=MetaStateChart):
         for transition in self.transitions:
             if transition.event in ('_auto_', name):
                 # def wrapper(*args: Any, **kwargs: Any) -> None:
-                #     return (getattr(self, 'get_transition')).run(
+                #     return (getattr(self, 'get_transition'))(
                 #         name, *args, **kwargs
                 #     )
                 #
@@ -216,7 +217,7 @@ class StateChart(metaclass=MetaStateChart):
         for key in list(self.states):
             if key == name:
                 return self.parent.states[name]
-        raise AttributeError
+        raise AttributeError(f"cannot find attribute: {name}")
 
     # @property
     # def _x(self) -> Optional['DataModel']:
@@ -297,7 +298,7 @@ class StateChart(metaclass=MetaStateChart):
                     if x[1] != '':
                         path.extend(target_path[i:])
                     if i == 0:
-                        raise Exception(
+                        raise InvalidPath(
                             f"no relative path exists for: {target!s}"
                         )
                     break

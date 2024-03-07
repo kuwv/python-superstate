@@ -1,32 +1,30 @@
 """Provide common types for statechart components."""
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 from superstate.exception import InvalidConfig
+from superstate.types import Expression
 from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
     from superstate.provider import Provider
 
 
-class Expression:
+class ExecutableContent:
     """Baseclass for expressions."""
 
     @classmethod
     def create(
-        cls, settings: Union['Action', Callable, Dict[str, Any]]
-    ) -> 'Action':
+        cls, settings: Union['ExecutableContent', Callable, Dict[str, Any]]
+    ) -> 'ExecutableContent':
         """Create expression from configuration."""
-        if isinstance(settings, Expression):
-            print('-- action', settings)
+        if isinstance(settings, ExecutableContent):
             return settings
         if isinstance(settings, dict):
-            print('-- dict', settings)
             for key, value in settings.items():
                 for Subclass in lookup_subclasses(cls):
                     if Subclass.__name__.lower() == key.lower():
-                        print('-- value', key, value, Subclass)
                         return (
                             Subclass(value)  # type: ignore
                             if callable(value)
@@ -34,43 +32,46 @@ class Expression:
                         )
         raise InvalidConfig('could not find a valid configuration for action')
 
-    def callback(self, provider: 'Provider') -> None:
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
         """Provide callback for language provider."""
 
 
-class Action(Expression):
+class Action(ExecutableContent):
     """Base class for actions."""
+
+    # XXX: action is a specialized remote
 
     @classmethod
     def create(
-        cls, settings: Union['Action', Callable, Dict[str, Any]]
-    ) -> 'Action':
+        cls, settings: Union['ExecutableContent', Callable, Dict[str, Any]]
+    ) -> 'ExecutableContent':
         """Create action from configuration."""
-        print(settings)
         if isinstance(settings, str) or callable(settings):
-            print('-- callable', settings)
             for Subclass in lookup_subclasses(cls):
                 if Subclass.__name__.lower() == 'script':
-                    print('-- made it', Subclass, settings)
                     return Subclass(settings)  # type: ignore
-        print('fail', settings)
         return super().create(settings)
 
 
 @dataclass
-class Conditional(Expression):
+class Conditional(ExecutableContent):
     """Data item providing state data."""
 
-    cond: Union[Callable, bool, str]
+    cond: Union[Expression, bool]
 
     @classmethod
     def create(
-        cls, settings: Union['Action', Callable, Dict[str, Any]]
-    ) -> 'Action':
+        cls, settings: Union['ExecutableContent', Callable, Dict[str, Any]]
+    ) -> 'ExecutableContent':
         """Create state from configuration."""
-        print(settings)
         if isinstance(settings, (bool, str)) or callable(settings):
-            print('-- callable', settings)
             return cls(settings)  # type: ignore
-        print('fail', settings)
         return super().create(settings)
+
+    def callback(
+        self, provider: 'Provider', *args: Any, **kwargs: Any
+    ) -> Optional[Any]:
+        """Provide callback for language provider."""
+        return provider.eval(self.cond, *args, **kwargs)

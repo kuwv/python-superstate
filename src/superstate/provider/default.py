@@ -6,14 +6,6 @@ from functools import singledispatchmethod
 from typing import Any, Union
 
 from superstate.exception import InvalidAction  # InvalidConfig
-from superstate.model import (
-    # Action,
-    Assign,
-    Conditional,
-    # ElseIf,
-    # If,
-    Script,
-)
 from superstate.provider.base import Provider
 
 
@@ -27,117 +19,86 @@ class Default(Provider):
     # def dispatch(self) -> Type['DispatcherBase']:
     #     """Get the configured dispath expression language."""
 
+    @staticmethod
+    def __call(expr: Callable, *args: Any, **kwargs: Any) -> Any:
+        # print(expr, args, kwargs)
+        signature = inspect.signature(expr)
+        if len(signature.parameters.keys()) != 0:
+            return expr(*args, **kwargs)
+        return expr()
+
     @singledispatchmethod
     def eval(
         self,
-        action: Union[Callable, str],
+        expr: Union[Callable, bool, str],
         *args: Any,
         **kwargs: Any,
     ) -> bool:
         raise NotImplementedError(
-            'datamodel cannot evaluate provided action type',
-            type(action),
-            action,
+            'datamodel cannot evaluate provided expression type', expr
         )
 
     @eval.register
-    def _(self, action: bool) -> bool:
+    def _(self, expr: bool) -> bool:
         """Evaluate condition to determine if transition should occur."""
-        # print('--eval call--', action)
-        return action
+        # print('--eval call--', expr)
+        return expr
 
     @eval.register
-    def _(self, action: Callable, *args: Any, **kwargs: Any) -> bool:
+    def _(self, expr: Callable, *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
-        # print('--eval call--', action)
-        return action(self.ctx, *args, **kwargs)
+        # print('--eval call--', expr)
+        return expr(self.ctx, *args, **kwargs)
 
     @eval.register
-    def _(self, action: str, *args: Any, **kwargs: Any) -> bool:
+    def _(self, expr: str, *args: Any, **kwargs: Any) -> bool:
         """Evaluate condition to determine if transition should occur."""
-        # print('--eval str--', action)
-        guard = getattr(self.ctx, action)
-        if callable(guard):
-            signature = inspect.signature(guard)
-            params = dict(signature.parameters)
-            if len(params.keys()) != 0:
-                return guard(*args, **kwargs)
-            return guard()
-        return bool(guard)
-
-    # @eval.register
-    # def _(self, action: Union[If, ElseIf]) -> bool:
-    #     """Evaluate condition to determine if transition should occur."""
-    #     code = compile(action.cond, '<string>', 'eval')
-    #     for name in code.co_names:
-    #         if name not in allowed:
-    #             raise NameError(f'Use of {name} not allowed')
-    #     # pylint: disable-next=eval-used
-    #     return eval(code, self.globals, self.locals)
+        # print('--eval str--', expr, hasattr(self.ctx, expr))
+        if hasattr(self.ctx, expr):
+            guard = getattr(self.ctx, expr)
+            if callable(guard):
+                return self.__call(guard, *args, **kwargs)
+            return bool(guard)
+        code = compile(expr, '<string>', 'eval')
+        # pylint: disable-next=eval-used
+        return eval(code, self.globals, self.locals)
 
     @singledispatchmethod
     def exec(
         self,
-        action: Union[Script, str],
+        expr: Union[Callable, str],
         *args: Any,
         **kwargs: Any,
-    ) -> None:
-        """Evaluate action."""
+    ) -> Any:
+        """Evaluate expr."""
         raise NotImplementedError(
-            'datamodel cannot execute provided action type', type(action)
+            'datamodel cannot execute provided expression type', expr
         )
 
-    @staticmethod
-    def __exec(action: Callable, *args: Any, **kwargs: Any) -> Any:
-        signature = inspect.signature(action)
-        if len(signature.parameters.keys()) != 0:
-            return action(*args, **kwargs)
-        return action()
-
     @exec.register
-    def _(self, action: Assign) -> None:
-        """Run action when transaction is processed."""
-        setattr(self.ctx, action.location, action)
+    def _(
+        self,
+        expr: Callable,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
+        """Run expression when transexpr is processed."""
+        # print('--exec script--', expr)
+        return self.__call(expr, self.ctx, *args, **kwargs)
 
     @exec.register
     def _(
         self,
-        action: Script,
+        expr: str,
         *args: Any,
         **kwargs: Any,
     ) -> Any:
-        """Run action when transaction is processed."""
-        # print('--exec script--', action)
-        if callable(action.src):
-            return self.__exec(action.src, self.ctx, *args, **kwargs)
-        return self.exec(action.src, *args, **kwargs)
-
-    @exec.register
-    def _(
-        self,
-        action: str,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
-        """Run action when transaction is processed."""
-        # print('--exec str--', action)
-        if hasattr(self.ctx, action):
-            return self.__exec(getattr(self.ctx, action), *args, **kwargs)
-        raise InvalidAction('could not process action type.')
-
-    # @exec.register
-    # def _(
-    #     self,
-    #     action: str,
-    #     # *args: Any,
-    #     # **kwargs: Any,
-    # ) -> Optional[Any]:
-    #     """Run action when transaction is processed."""
-    #     if action is not None and type(action) in dir(__builtins__):
-    #         code = compile(action, '<string>', 'exec')
-    #         for name in code.co_names:
-    #             if name not in local:
-    #                 raise NameError(f'Use of {name} not allowed')
-    #         # pylint: disable-next=exec-used
-    #         return exec(code, self.globals, self.locals)
-    #     return self.ctx[action.location] = action
+        """Run expression when transexpr is processed."""
+        # print('--exec str--', expr)
+        if hasattr(self.ctx, expr):
+            return self.__call(getattr(self.ctx, expr), *args, **kwargs)
+        values = self.locals.copy()
+        code = compile(expr, '<string>', 'exec')
+        # pylint: disable-next=exec-used
+        exec(code, self.globals, values)
+        return values
