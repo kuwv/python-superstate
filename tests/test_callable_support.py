@@ -96,4 +96,4 @@ def test_deny_state_change_if_guard_callable_returns_false() -> None:
     door = Door()
     door.locked = True
     with pytest.raises(ConditionNotSatisfied):
-        door.open()
+        door.trigger('open')

@@ -125,6 +125,33 @@ class State:
         self.__datamodel = kwargs.pop('datamodel', None)
         # self.validate()
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.name == other.name
+        if isinstance(other, str):
+            return self.name == other
+        return False
+
+    def __getattr__(self, name: str) -> Any:
+        # do not attempt to resolve missing dunders
+        if name.startswith('__'):
+            raise AttributeError
+
+        # map data values as attributes
+        for i, data in enumerate(self.data):
+            if data.id == name:
+                return self.data[i].value
+        raise AttributeError(f"cannot find attribute: {name}")
+
+    def __repr__(self) -> str:
+        return repr(f"{self.__class__.__name__}({self.name})")
+
+    def __reversed__(self) -> Generator['State', None, None]:
+        target: Optional['State'] = self
+        while target:
+            yield target
+            target = target.parent
+
     @classmethod
     def create(
         cls, settings: Union['State', dict, str]
@@ -138,7 +165,9 @@ class State:
                 name=settings.get('name', 'root'),
                 initial=settings.get('initial'),
                 type=settings.get('type'),
-                datamodel=DataModel(settings.get('datamodel', {})),
+                datamodel=DataModel.create(
+                    settings.get('datamodel', {'data': {}})
+                ),
                 states=(
                     list(map(State.create, settings['states']))
                     if 'states' in settings
@@ -166,22 +195,6 @@ class State:
             return obj
         raise InvalidConfig('could not create state from provided settings')
 
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, self.__class__):
-            return self.name == other.name
-        if isinstance(other, str):
-            return self.name == other
-        return False
-
-    def __repr__(self) -> str:
-        return repr(f"{self.__class__.__name__}({self.name})")
-
-    def __reversed__(self) -> Generator['State', None, None]:
-        target: Optional['State'] = self
-        while target:
-            yield target
-            target = target.parent
-
     @property
     def datamodel(self) -> Optional['DataModel']:
         """Get datamodel data items."""
@@ -195,9 +208,7 @@ class State:
     @property
     def path(self) -> str:
         """Get the statepath of this state."""
-        return '.'.join(
-            reversed([x.name for x in reversed(self)])  # type: ignore
-        )
+        return '.'.join(reversed([x.name for x in reversed(self)]))
 
     # @property
     # def relpath(self) -> str:
@@ -309,18 +320,16 @@ class FinalState(State):
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
         if self.__on_entry:
-            Executor = ctx.__datamodel__
-            if Executor:
-                results = []
-                executor = Executor(ctx)
-                for expression in self.__on_entry:
-                    results.append(
-                        executor.handle(expression)
-                    )  # *args, **kwargs))
-                log.info(
-                    "executed 'on_entry' state change action for %s", self.name
-                )
-                return results
+            executor = ctx.datamodel.provider(ctx)
+            results = []
+            for expression in self.__on_entry:
+                results.append(
+                    executor.handle(expression)
+                )  # *args, **kwargs))
+            log.info(
+                "executed 'on_entry' state change action for %s", self.name
+            )
+            return results
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
@@ -379,34 +388,30 @@ class AtomicState(State):
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         self._process_transient_state(ctx)
         if self.__on_entry:
-            Executor = ctx.__datamodel__
-            if Executor:
-                results = []
-                executor = Executor(ctx)
-                for expression in self.__on_entry:
-                    results.append(
-                        executor.handle(expression)
-                    )  # *args, **kwargs))
-                log.info(
-                    "executed 'on_entry' state change action for %s", self.name
-                )
-                return results
+            results = []
+            executor = ctx.datamodel.provider(ctx)
+            for expression in self.__on_entry:
+                results.append(
+                    executor.handle(expression)
+                )  # *args, **kwargs))
+            log.info(
+                "executed 'on_entry' state change action for %s", self.name
+            )
+            return results
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
-            Executor = ctx.__datamodel__
-            if Executor:
-                results = []
-                executor = Executor(ctx)
-                for expression in self.__on_exit:
-                    results.append(
-                        executor.handle(expression)
-                    )  # *args, **kwargs))
-                log.info(
-                    "executed 'on_exit' state change action for %s", self.name
-                )
-                return results
+            results = []
+            executor = ctx.datamodel.provider(ctx)
+            for expression in self.__on_exit:
+                results.append(
+                    executor.handle(expression)
+                )  # *args, **kwargs))
+            log.info(
+                "executed 'on_exit' state change action for %s", self.name
+            )
+            return results
         return None
 
 

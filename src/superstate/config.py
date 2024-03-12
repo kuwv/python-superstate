@@ -12,6 +12,8 @@ from superstate.model.system import (
     TimeInfo,
 )
 
+DEFAULT_PROVIDER = 'default'
+
 DEFAULT_BINDING: str = 'early'
 
 DEFAULT_DATAMODEL: Dict[str, Any] = {

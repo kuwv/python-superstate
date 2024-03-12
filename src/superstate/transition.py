@@ -93,15 +93,11 @@ class Transition:
 
         results = None
         if self.actions:
-            DataModel = ctx.__datamodel__
-            if DataModel:
-                results = []
-                datamodel = DataModel(ctx)
-                for expression in tuplize(self.actions):
-                    results.append(
-                        datamodel.handle(expression, *args, **kwargs)
-                    )
-                log.info("executed action event for %r", self.event)
+            results = []
+            provider = ctx.datamodel.provider(ctx)
+            for expression in tuplize(self.actions):
+                results.append(provider.handle(expression, *args, **kwargs))
+            log.info("executed action event for %r", self.event)
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
         return results
@@ -121,11 +117,9 @@ class Transition:
         """Evaluate conditionss of transition."""
         result = True
         if self.cond:
-            DataModel = ctx.__datamodel__
-            if DataModel:
-                datamodel = DataModel(ctx)
-                for guard in tuplize(self.cond):
-                    result = datamodel.handle(guard, *args, **kwargs)
-                    if result is False:
-                        break
+            provider = ctx.datamodel.provider(ctx)
+            for expression in tuplize(self.cond):
+                result = provider.handle(expression, *args, **kwargs)
+                if result is False:
+                    break
         return result

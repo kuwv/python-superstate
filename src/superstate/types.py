@@ -3,7 +3,16 @@
 import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from superstate.exception import InvalidConfig
 
@@ -78,17 +87,16 @@ class Expression(Validator):
                 raise InvalidConfig('expressions cannot be chained')
 
 
-# class Static:
-#     """Provide static attribute type."""
-#
-#     def __init__(self) -> None:
-#         """Initialize default value for attribute."""
-#         self.value: Optional[Any] = None
-#
-#     def __get__(
-#         self, obj: object, objtype: Optional[Type[T]] = None
-#     ) -> Optional[T]:
-#         return self.value
-#
-#     def __set__(self, obj: object, value: T) -> None:
-#         self.value = value
+class Final(Generic[T]):
+    """Provide final attribute descriptor."""
+
+    def __init__(self, value: Optional[T] = None) -> None:
+        """Initialize default value for attribute."""
+        self.value = value
+
+    def __get__(self, obj: object, objtype: Type[T]) -> Optional[T]:
+        return self.value
+
+    def __set__(self, obj: object, value: T) -> None:
+        if self.value is None:
+            self.value = value

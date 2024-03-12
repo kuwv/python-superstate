@@ -1,10 +1,27 @@
 """Provide common types for statechart components."""
 
-from dataclasses import InitVar, dataclass, field
-from typing import Any, Optional, Sequence, Union
+import json
+from dataclasses import dataclass
+from mimetypes import guess_type
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    # Dict,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+)
 from urllib.request import urlopen
 
+from superstate.provider import Default
 from superstate.exception import InvalidConfig
+
+# from superstate.utils import lookup_subclasses
+
+if TYPE_CHECKING:
+    from superstate.provider import Provider
 
 
 @dataclass
@@ -12,27 +29,37 @@ class Data:
     """Data item providing state data."""
 
     id: str
-    src: InitVar[Optional[str]] = None  # URI type
-    expr: InitVar[Optional[str]] = None  # expression
-    value: Optional[Any] = field(repr=False, default=None)
+    src: Optional[str] = None  # URI type
+    expr: Optional[str] = None  # expression
+    binding: ClassVar[str] = 'early'
 
-    def __post_init__(self, src: Optional[str], expr: Optional[str]) -> None:
+    def __post_init__(self) -> None:
         """Validate the data object."""
-        if sum(1 for x in (src, expr, self.value) if x) > 1:
-            raise Exception(
-                'data contains mutually exclusive src, expr, or value attrs'
+        if sum(1 for x in (self.src, self.expr) if x) > 1:
+            raise InvalidConfig(
+                'data contains mutually exclusive src and expr attributes'
             )
-        if src:
-            with urlopen(src) as rsp:
-                self.value = rsp.read()
-        if expr:
-            # TODO: use action or script specified in datamodel
-            self.value = expr
+        self.__value: Optional[Any] = None
+        if Data.binding == 'early':
+            self.__initialize()
 
+    def __initialize(self) -> None:
+        """Process data attributes."""
         # TODO: if binding is late:
-        #   - src should store the URL and then retrieve when accessed
-        #   - expr should store and evalute using the datamodel scripting
-        #     language
+        #   - src: should store the URL and then retrieve when accessed
+        #   - expr: should store and evalute using the assign datamodel
+        #     element
+        if self.expr:
+            # TODO: use action or script specified in datamodel
+            self.__value = self.expr
+        if self.src:
+            content_type, _ = guess_type(self.src)
+            with urlopen(self.src) as rsp:
+                content = rsp.read()
+                if content_type == 'application/json':
+                    self.__value = json.loads(content)
+                else:
+                    raise InvalidConfig('data is unsupported type')
 
     @classmethod
     def create(cls, settings: Union['Data', dict]) -> 'Data':
@@ -44,20 +71,23 @@ class Data:
                 id=settings.pop('id'),
                 src=settings.pop('src', None),
                 expr=settings.pop('expr', None),
-                value=settings,
             )
         raise InvalidConfig('could not find a valid data configuration')
 
+    @property
+    def value(self) -> Optional[Any]:
+        """Retrieve value from either expression or URL source."""
+        if Data.binding == 'late':
+            self.__initialize()
+        return self.__value
 
+
+@dataclass
 class DataModel:
     """Instantiate state types from class metadata."""
 
-    enabled: str = 'default'
-
-    def __init__(self, data: Sequence['Data']) -> None:
-        """Initialize datamodel."""
-        # should support platform-specific, global, and local variables
-        self.data = data
+    data: Sequence['Data']
+    provider: ClassVar[Type['Provider']] = Default
 
     @classmethod
     def create(cls, settings: Union['DataModel', dict]) -> 'DataModel':

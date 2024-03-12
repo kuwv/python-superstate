@@ -5,7 +5,7 @@ from collections.abc import Callable
 from functools import singledispatchmethod
 from typing import Any, Union
 
-from superstate.exception import InvalidAction  # InvalidConfig
+# from superstate.exception import InvalidAction  # InvalidConfig
 from superstate.provider.base import Provider
 
 
@@ -20,7 +20,7 @@ class Default(Provider):
     #     """Get the configured dispath expression language."""
 
     @staticmethod
-    def __call(expr: Callable, *args: Any, **kwargs: Any) -> Any:
+    def __handle(expr: Callable, *args: Any, **kwargs: Any) -> Any:
         # print(expr, args, kwargs)
         signature = inspect.signature(expr)
         if len(signature.parameters.keys()) != 0:
@@ -34,6 +34,7 @@ class Default(Provider):
         *args: Any,
         **kwargs: Any,
     ) -> bool:
+        """Evaluate expression to determine if action should occur."""
         raise NotImplementedError(
             'datamodel cannot evaluate provided expression type', expr
         )
@@ -57,7 +58,7 @@ class Default(Provider):
         if hasattr(self.ctx, expr):
             guard = getattr(self.ctx, expr)
             if callable(guard):
-                return self.__call(guard, *args, **kwargs)
+                return self.__handle(guard, *args, **kwargs)
             return bool(guard)
         code = compile(expr, '<string>', 'eval')
         # pylint: disable-next=eval-used
@@ -84,7 +85,7 @@ class Default(Provider):
     ) -> Any:
         """Run expression when transexpr is processed."""
         # print('--exec script--', expr)
-        return self.__call(expr, self.ctx, *args, **kwargs)
+        return self.__handle(expr, self.ctx, *args, **kwargs)
 
     @exec.register
     def _(
@@ -96,9 +97,9 @@ class Default(Provider):
         """Run expression when transexpr is processed."""
         # print('--exec str--', expr)
         if hasattr(self.ctx, expr):
-            return self.__call(getattr(self.ctx, expr), *args, **kwargs)
+            return self.__handle(getattr(self.ctx, expr), *args, **kwargs)
         values = self.locals.copy()
-        code = compile(expr, '<string>', 'exec')
+        code = compile(expr, '<string>', 'single')
         # pylint: disable-next=exec-used
         exec(code, self.globals, values)
         return values

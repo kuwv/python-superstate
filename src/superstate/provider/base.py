@@ -1,6 +1,6 @@
 """Provide common types for statechart components."""
 
-# import re
+import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from functools import singledispatchmethod
 from typing import (
@@ -24,39 +24,21 @@ if TYPE_CHECKING:
 T = TypeVar('T')
 
 
-# class In:
-#     """Provide condition using 'In()' predicate to determine transition."""
-#
-#     @classmethod
-#     def eval(cls, expr: 'ExecutableContent') -> bool:
-#         """Evaluate condition to determine if transition should occur."""
-#         if isinstance(expr, str):
-#             match = re.match(
-#                 r'^in\([\'\"](?P<state>.*)[\'\"]\)$',
-#                 expr,
-#                 re.IGNORECASE,
-#             )
-#             if match:
-#                 result = match.group('state') in self.ctx.active
-#             else:
-#                 # TODO: put error on 'error.execution' on internal event
-#                 # queue
-#                 result = False
-#             return result
-#         raise InvalidConfig(
-#             'incorrect condition provided to In() expression.'
-#         )
-
-
 class Provider(ABC):
     """Instantiate state types from class metadata."""
 
-    enabled: str = 'default'
     # should support platform-specific, global, and local variables
 
     def __init__(self, ctx: 'StateChart') -> None:
         """Initialize for MyPy."""
         self.ctx = ctx
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self == other
+        if isinstance(other, str):
+            return self.__class__.__name__ == other
+        return False
 
     @classmethod
     def get_provider(cls, name: str) -> Type['Provider']:
@@ -97,7 +79,7 @@ class Provider(ABC):
         return {
             x: getattr(self.ctx, x)
             for x in dir(self.ctx)
-            if not x.startswith('__')
+            # if not x.startswith('__')
         }
 
     # @singledispatchmethod
@@ -106,6 +88,23 @@ class Provider(ABC):
     #     self, expr: 'ExecutableContent', *args: Any, **kwargs: Any
     # ) -> bool:
     #     """Dispatch expression."""
+
+    def _in(self, expr: 'ExecutableContent') -> bool:
+        """Evaluate condition to determine if transition should occur."""
+        if isinstance(expr, str):
+            match = re.match(
+                r'^in\([\'\"](?P<state>.*)[\'\"]\)$',
+                expr,
+                re.IGNORECASE,
+            )
+            if match:
+                result = match.group('state') in self.ctx.active
+            else:
+                # TODO: put error on 'error.execution' on internal event
+                # queue
+                result = False
+            return result
+        raise InvalidConfig('incorrect condition provided to In() expression.')
 
     @singledispatchmethod
     @abstractmethod
