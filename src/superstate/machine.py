@@ -189,9 +189,9 @@ class StateChart(metaclass=MetaStateChart):
             return wrapper
 
         # map data values as attributes
-        # for i, data in enumerate(self.__datamodel.data):
-        #     if data.id == name:
-        #         return self.__datamodel.data[i].value
+        for i, data in enumerate(self.datamodel.data):
+            if data.id == name:
+                return self.datamodel.data[i].value
         raise AttributeError(f"cannot find attribute: {name}")
 
     @property
