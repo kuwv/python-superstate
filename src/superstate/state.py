@@ -391,6 +391,7 @@ class AtomicState(State):
             results = []
             executor = ctx.datamodel.provider(ctx)
             for expression in self.__on_entry:
+                print('+++++++++++++++++++++++++', expression)
                 results.append(
                     executor.handle(expression)
                 )  # *args, **kwargs))

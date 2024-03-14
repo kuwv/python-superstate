@@ -76,7 +76,6 @@ class MetaStateChart(type):
         if provider != DEFAULT_PROVIDER:
             DataModel.provider = PROVIDERS[provider]
         datamodel = DataModel.create(attrs.pop('datamodel', {'data': []}))
-        print('---', datamodel)
         # datamodel['data'].append({'id': 'root', 'expr': root})
 
         obj = super().__new__(mcs, name, bases, attrs)

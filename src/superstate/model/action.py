@@ -23,9 +23,13 @@ class Assign(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
-        provider.exec(self.expr, *args, **kwargs)
-        # print(result)
-        # setattr(self.ctx, expr.location, expr)
+        kwargs['_mode_'] = 'single'
+        result = provider.exec(self.expr, *args, **kwargs)
+        for i, x in enumerate(list(provider.ctx.datamodel.data)):
+            if x.id == self.location:
+                x.expr = result
+                provider.ctx.datamodel.data[i] = x
+                break
 
 
 @dataclass
@@ -37,7 +41,7 @@ class ForEach(Action):
     index: Optional[str] = None  # expression
 
     def __post_init__(self) -> None:
-        self.array = [Action.create(x) for x in self.array]
+        self.array = [Action.create(x) for x in self.array]  # type: ignore
 
     def callback(
         self, provider: 'Provider', *args: Any, **kwargs: Any
@@ -56,6 +60,7 @@ class Log(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
+        kwargs['_mode_'] = 'single'
 
 
 @dataclass
@@ -68,6 +73,7 @@ class Raise(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
+        kwargs['_mode_'] = 'single'
 
 
 @dataclass
@@ -81,6 +87,7 @@ class Script(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
+        kwargs['_mode_'] = 'exec'
         return provider.exec(self.src, *args, **kwargs)
 
 
@@ -116,11 +123,11 @@ class Else(Conditional):
 
     def __post_init__(self) -> None:
         self.cond = True
-        self.actions = [Action.create(x) for x in self.actions]
+        self.actions = [Action.create(x) for x in self.actions]  # type: ignore
 
     def callback(
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
         for action in self.actions:
-            provider.handle(action)
+            provider.handle(action, *args, **kwargs)

@@ -7,6 +7,7 @@ from typing import Any, Union
 
 # from superstate.exception import InvalidAction  # InvalidConfig
 from superstate.provider.base import Provider
+from superstate.utils import to_bool
 
 
 class Default(Provider):
@@ -59,7 +60,7 @@ class Default(Provider):
             guard = getattr(self.ctx, expr)
             if callable(guard):
                 return self.__handle(guard, *args, **kwargs)
-            return bool(guard)
+            return to_bool(guard)
         code = compile(expr, '<string>', 'eval')
         # pylint: disable-next=eval-used
         return eval(code, self.globals, self.locals)
@@ -85,6 +86,7 @@ class Default(Provider):
     ) -> Any:
         """Run expression when transexpr is processed."""
         # print('--exec script--', expr)
+        kwargs.pop('_mode_', 'single')
         return self.__handle(expr, self.ctx, *args, **kwargs)
 
     @exec.register
@@ -96,10 +98,12 @@ class Default(Provider):
     ) -> Any:
         """Run expression when transexpr is processed."""
         # print('--exec str--', expr)
+        mode = kwargs.pop('_mode_', 'single')
         if hasattr(self.ctx, expr):
             return self.__handle(getattr(self.ctx, expr), *args, **kwargs)
         values = self.locals.copy()
-        code = compile(expr, '<string>', 'single')
+        values['__result__'] = None
+        code = compile(f"result = {expr}", '<string>', mode)
         # pylint: disable-next=exec-used
         exec(code, self.globals, values)
-        return values
+        return values['__result__']

@@ -81,6 +81,11 @@ class Data:
             self.__initialize()
         return self.__value
 
+    @value.setter
+    def value(self, value: Any) -> None:
+        """Set the value of the data attribute."""
+        self.__value = value
+
 
 @dataclass
 class DataModel:

@@ -63,24 +63,43 @@ class Provider(ABC):
     #         'could not find a valid data model configuration'
     #     )
 
-    # @property
-    # def ctx(self) -> 'StateChart':
-    #     """Return instance of StateChart."""
-    #     return self.__ctx
-
     @property
     def globals(self) -> Dict[str, Any]:
         """Get global attributes and methods available for eval and exec."""
-        return {'__builtins__': {}}
+        # pylint: disable=import-outside-toplevel
+        from datetime import datetime
+
+        return {
+            # '__builtins__': {},
+            'datetime': datetime
+        }
 
     @property
     def locals(self) -> Dict[str, Any]:
         """Get local attributes and methods available for eval and exec."""
-        return {
-            x: getattr(self.ctx, x)
-            for x in dir(self.ctx)
-            # if not x.startswith('__')
-        }
+        # return {
+        #     x: getattr(self.ctx, x)
+        #     for x in dir(self.ctx)
+        #     # if not x.startswith('__')
+        # }
+        lcl = {x.id: x.value for x in self.ctx.datamodel.data}
+        lcl['In'] = self.In
+        return lcl
+
+    def In(self, expr: str) -> bool:
+        """Evaluate condition to determine if transition should occur."""
+        match = re.match(
+            r'^in\([\'\"](?P<state>.*)[\'\"]\)$',
+            expr,
+            re.IGNORECASE,
+        )
+        if match:
+            result = match.group('state') in self.ctx.active
+        else:
+            # TODO: put error on 'error.execution' on internal event
+            # queue
+            result = False
+        return result
 
     # @singledispatchmethod
     # @abstractmethod
@@ -88,23 +107,6 @@ class Provider(ABC):
     #     self, expr: 'ExecutableContent', *args: Any, **kwargs: Any
     # ) -> bool:
     #     """Dispatch expression."""
-
-    def _in(self, expr: 'ExecutableContent') -> bool:
-        """Evaluate condition to determine if transition should occur."""
-        if isinstance(expr, str):
-            match = re.match(
-                r'^in\([\'\"](?P<state>.*)[\'\"]\)$',
-                expr,
-                re.IGNORECASE,
-            )
-            if match:
-                result = match.group('state') in self.ctx.active
-            else:
-                # TODO: put error on 'error.execution' on internal event
-                # queue
-                result = False
-            return result
-        raise InvalidConfig('incorrect condition provided to In() expression.')
 
     @singledispatchmethod
     @abstractmethod
@@ -124,4 +126,5 @@ class Provider(ABC):
         self, expr: 'ExecutableContent', *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Accept callbacks for executable content."""
+        print(expr)
         return expr.callback(self, *args, **kwargs)
