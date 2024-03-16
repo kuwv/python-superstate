@@ -8,8 +8,9 @@ from typing import (
     Any,
     ClassVar,
     # Dict,
+    List,
     Optional,
-    Sequence,
+    # Sequence,
     Type,
     Union,
 )
@@ -91,7 +92,7 @@ class Data:
 class DataModel:
     """Instantiate state types from class metadata."""
 
-    data: Sequence['Data']
+    data: List['Data']
     provider: ClassVar[Type['Provider']] = Default
 
     @classmethod
@@ -101,7 +102,7 @@ class DataModel:
             return settings
         if isinstance(settings, dict):
             return cls(
-                tuple(map(Data.create, settings['data']))
+                list(map(Data.create, settings['data']))
                 if 'data' in settings
                 else []
             )
@@ -112,5 +113,5 @@ class DataModel:
 class DoneData:
     """Data model providing state data."""
 
-    param: Sequence[Data]
+    param: List[Data]
     content: Optional[Any] = None

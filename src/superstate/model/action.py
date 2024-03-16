@@ -23,12 +23,12 @@ class Assign(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
-        kwargs['_mode_'] = 'single'
+        kwargs['__mode__'] = 'single'
         result = provider.exec(self.expr, *args, **kwargs)
-        for i, x in enumerate(list(provider.ctx.datamodel.data)):
+        for i, x in enumerate(provider.ctx.current_state.datamodel.data):
             if x.id == self.location:
-                x.expr = result
-                provider.ctx.datamodel.data[i] = x
+                x.value = result
+                provider.ctx.current_state.datamodel.data[i] = x
                 break
 
 
@@ -60,7 +60,7 @@ class Log(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
-        kwargs['_mode_'] = 'single'
+        kwargs['__mode__'] = 'single'
 
 
 @dataclass
@@ -73,7 +73,7 @@ class Raise(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
-        kwargs['_mode_'] = 'single'
+        kwargs['__mode__'] = 'single'
 
 
 @dataclass
@@ -87,7 +87,7 @@ class Script(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
-        kwargs['_mode_'] = 'exec'
+        kwargs['__mode__'] = 'exec'
         return provider.exec(self.src, *args, **kwargs)
 
 

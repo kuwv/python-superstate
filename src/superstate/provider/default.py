@@ -86,7 +86,7 @@ class Default(Provider):
     ) -> Any:
         """Run expression when transexpr is processed."""
         # print('--exec script--', expr)
-        kwargs.pop('_mode_', 'single')
+        kwargs.pop('__mode__', 'single')
         return self.__handle(expr, self.ctx, *args, **kwargs)
 
     @exec.register
@@ -98,12 +98,11 @@ class Default(Provider):
     ) -> Any:
         """Run expression when transexpr is processed."""
         # print('--exec str--', expr)
-        mode = kwargs.pop('_mode_', 'single')
+        mode = kwargs.pop('__mode__', 'single')
         if hasattr(self.ctx, expr):
             return self.__handle(getattr(self.ctx, expr), *args, **kwargs)
         values = self.locals.copy()
-        values['__result__'] = None
-        code = compile(f"result = {expr}", '<string>', mode)
-        # pylint: disable-next=exec-used
-        exec(code, self.globals, values)
-        return values['__result__']
+        values['__results__'] = None
+        code = compile(f"__results__ = {expr}", '<string>', mode)
+        exec(code, self.globals, values)  # pylint: disable=exec-used
+        return values['__results__']

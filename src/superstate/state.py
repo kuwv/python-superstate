@@ -81,7 +81,7 @@ class State:
     #     '__type',
     # ]
 
-    __datamodel: Optional['DataModel']
+    __datamodel: 'DataModel'
     name: str = cast(str, Identifier())
 
     # pylint: disable-next=unused-argument
@@ -122,7 +122,7 @@ class State:
         self.__parent: Optional['CompositeState'] = None
         self.name = name
         self.__type = kwargs.get('type', 'atomic')
-        self.__datamodel = kwargs.pop('datamodel', None)
+        self.__datamodel = kwargs.pop('datamodel', DataModel([]))
         # self.validate()
 
     def __eq__(self, other: object) -> bool:
@@ -196,14 +196,14 @@ class State:
         raise InvalidConfig('could not create state from provided settings')
 
     @property
-    def datamodel(self) -> Optional['DataModel']:
+    def datamodel(self) -> 'DataModel':
         """Get datamodel data items."""
         return self.__datamodel
 
     @property
     def data(self) -> Sequence['Data']:
         """Get datamodel data items."""
-        return self.__datamodel.data if self.__datamodel else ()
+        return self.datamodel.data
 
     @property
     def path(self) -> str:
@@ -391,7 +391,6 @@ class AtomicState(State):
             results = []
             executor = ctx.datamodel.provider(ctx)
             for expression in self.__on_entry:
-                print('+++++++++++++++++++++++++', expression)
                 results.append(
                     executor.handle(expression)
                 )  # *args, **kwargs))

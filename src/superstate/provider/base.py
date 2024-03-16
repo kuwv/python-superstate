@@ -69,10 +69,10 @@ class Provider(ABC):
         # pylint: disable=import-outside-toplevel
         from datetime import datetime
 
-        return {
-            # '__builtins__': {},
-            'datetime': datetime
-        }
+        glb = {x.id: x.value for x in self.ctx.data}
+        # glb['__builtins__'] = {}
+        glb['datetime'] = datetime
+        return glb
 
     @property
     def locals(self) -> Dict[str, Any]:
@@ -82,24 +82,23 @@ class Provider(ABC):
         #     for x in dir(self.ctx)
         #     # if not x.startswith('__')
         # }
-        lcl = {x.id: x.value for x in self.ctx.datamodel.data}
+        lcl = {x.id: x.value for x in self.ctx.current_state.data}
         lcl['In'] = self.In
         return lcl
 
     def In(self, expr: str) -> bool:
         """Evaluate condition to determine if transition should occur."""
+        if expr in self.ctx.active:
+            return True
         match = re.match(
             r'^in\([\'\"](?P<state>.*)[\'\"]\)$',
             expr,
             re.IGNORECASE,
         )
         if match:
-            result = match.group('state') in self.ctx.active
-        else:
-            # TODO: put error on 'error.execution' on internal event
-            # queue
-            result = False
-        return result
+            return match.group('state') in self.ctx.active
+        # TODO: put error on 'error.execution' on internal event queue
+        return False
 
     # @singledispatchmethod
     # @abstractmethod
@@ -126,5 +125,4 @@ class Provider(ABC):
         self, expr: 'ExecutableContent', *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Accept callbacks for executable content."""
-        print(expr)
         return expr.callback(self, *args, **kwargs)

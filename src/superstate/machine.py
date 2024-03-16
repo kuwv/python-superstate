@@ -199,6 +199,11 @@ class StateChart(metaclass=MetaStateChart):
         return self.__initial__
 
     @property
+    def data(self) -> List['Data']:
+        """Return the current state."""
+        return self.datamodel.data
+
+    @property
     def current_state(self) -> 'State':
         """Return the current state."""
         return self.__current_state
