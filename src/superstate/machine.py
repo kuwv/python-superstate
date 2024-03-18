@@ -1,6 +1,7 @@
 """Provide parent core statechart capability."""
 
 import logging
+import logging.config
 import os
 from copy import deepcopy
 from itertools import zip_longest
@@ -115,14 +116,15 @@ class StateChart(metaclass=MetaStateChart):
         **kwargs: Any,
     ) -> None:
         if 'logging_enabled' in kwargs and kwargs['logging_enabled']:
-            handler = logging.StreamHandler()
-            formatter = kwargs.pop(
-                'logging_format', '%(name)s :: %(levelname)-8s :: %(message)s'
-            )
-            handler.setFormatter(logging.Formatter(fmt=formatter))
-            log.addHandler(handler)
+            # handler = logging.StreamHandler()
+            # formatter = kwargs.pop(
+            #     'logging_format',
+            #     '%(name)s :: %(levelname)-8s :: %(message)s',
+            # )
+            # handler.setFormatter(logging.Formatter(fmt=formatter))
+            # log.addHandler(handler)
             if 'logging_level' in kwargs:
-                log.setLevel(kwargs['logging_level'].upper())
+                log.setLevel(kwargs.pop('logging_level').upper())
         log.info('initializing statechart')
 
         self._sessionid = UUID(
