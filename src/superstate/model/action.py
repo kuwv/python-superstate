@@ -2,8 +2,16 @@
 
 import logging
 import logging.config
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
+from dataclasses import InitVar, dataclass
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    List,
+    Optional,
+    Sequence,
+    Union,
+)
 
 from superstate.config import LOGGING_CONFIG
 from superstate.model.base import Action, Conditional
@@ -43,17 +51,36 @@ class Assign(Action):
 class ForEach(Action):
     """Data item providing state data."""
 
+    content: InitVar[List[str]]
     array: Sequence[Action]
     item: Optional[str]
     index: Optional[str] = None  # expression
 
-    def __post_init__(self) -> None:
-        self.array = [Action.create(x) for x in self.array]  # type: ignore
+    def __post_init__(self, content: List[str]) -> None:
+        self.__content = [Action.create(x) for x in content]  # type: ignore
 
     def callback(
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
+        # XXX: really dislike data as an iterable
+        array = None
+        for x in provider.ctx.current_state.datamodel.data:
+            if x.id == self.array:
+                array = x.value
+                break
+        if array:
+            for index, item in enumerate(array):
+                for expr in self.__content:
+                    if self.index:
+                        kwargs[self.index] = index
+                    if self.item:
+                        kwargs[self.item] = item
+                    provider.handle(expr, *args, **kwargs)
+        # else:
+        #     raise AttributeError(
+        #         'unable to set missing datamodel attribute.'
+        #     )
 
 
 @dataclass
@@ -72,7 +99,7 @@ class Log(Action):
     ) -> None:
         """Provide callback from datamodel provider."""
         kwargs['__mode__'] = 'single'
-        logger = logging.getLogger(self.label or provider.ctx.__name__)
+        logger = logging.getLogger(self.label)
         logger.setLevel(logging.DEBUG)
         result = provider.exec(self.expr, *args, **kwargs)
         logger.debug(result)

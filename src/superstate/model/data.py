@@ -1,7 +1,7 @@
 """Provide common types for statechart components."""
 
 import json
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from mimetypes import guess_type
 from typing import (
     TYPE_CHECKING,
@@ -32,15 +32,18 @@ class Data:
     id: str
     src: Optional[str] = None  # URI type
     expr: Optional[str] = None  # expression
+    # TODO: need a more comprehensive binding strategy that removes iteration
+    # for variable access
     binding: ClassVar[str] = 'early'
+    content: InitVar[Optional[Any]] = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, content: Any = None) -> None:
         """Validate the data object."""
-        if sum(1 for x in (self.src, self.expr) if x) > 1:
+        self.__value: Optional[Any] = content
+        if sum(1 for x in (self.expr, self.src, self.value) if x) > 1:
             raise InvalidConfig(
                 'data contains mutually exclusive src and expr attributes'
             )
-        self.__value: Optional[Any] = None
         if Data.binding == 'early':
             self.__initialize()
 
@@ -48,8 +51,7 @@ class Data:
         """Process data attributes."""
         # TODO: if binding is late:
         #   - src: should store the URL and then retrieve when accessed
-        #   - expr: should store and evalute using the assign datamodel
-        #     element
+        #   - expr: should store and evalute using the assign datamodel element
         if self.expr:
             # TODO: use action or script specified in datamodel
             self.__value = self.expr
@@ -72,6 +74,7 @@ class Data:
                 id=settings.pop('id'),
                 src=settings.pop('src', None),
                 expr=settings.pop('expr', None),
+                content=settings,
             )
         raise InvalidConfig('could not find a valid data configuration')
 
@@ -93,6 +96,7 @@ class DataModel:
     """Instantiate state types from class metadata."""
 
     data: List['Data']
+    # binding: ClassVar[str] = 'early'
     provider: ClassVar[Type['Provider']] = Default
 
     @classmethod

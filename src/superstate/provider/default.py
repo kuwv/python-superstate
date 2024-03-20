@@ -21,8 +21,8 @@ class Default(Provider):
     #     """Get the configured dispath expression language."""
 
     @staticmethod
-    def __handle(expr: Callable, *args: Any, **kwargs: Any) -> Any:
-        # print(expr, args, kwargs)
+    def __call(expr: Callable, *args: Any, **kwargs: Any) -> Any:
+        # print('--__call--', expr, args, kwargs)
         signature = inspect.signature(expr)
         if len(signature.parameters.keys()) != 0:
             return expr(*args, **kwargs)
@@ -59,7 +59,7 @@ class Default(Provider):
         if hasattr(self.ctx, expr):
             guard = getattr(self.ctx, expr)
             if callable(guard):
-                return self.__handle(guard, *args, **kwargs)
+                return self.__call(guard, *args, **kwargs)
             return to_bool(guard)
         code = compile(expr, '<string>', 'eval')
         # pylint: disable-next=eval-used
@@ -87,7 +87,7 @@ class Default(Provider):
         """Run expression when transexpr is processed."""
         # print('--exec script--', expr)
         kwargs.pop('__mode__', 'single')
-        return self.__handle(expr, self.ctx, *args, **kwargs)
+        return self.__call(expr, self.ctx, *args, **kwargs)
 
     @exec.register
     def _(
@@ -100,7 +100,7 @@ class Default(Provider):
         # print('--exec str--', expr)
         mode = kwargs.pop('__mode__', 'single')
         if hasattr(self.ctx, expr):
-            return self.__handle(getattr(self.ctx, expr), *args, **kwargs)
+            return self.__call(getattr(self.ctx, expr), *args, **kwargs)
         values = self.locals.copy()
         values['__results__'] = None
         code = compile(f"__results__ = {expr}", '<string>', mode)
