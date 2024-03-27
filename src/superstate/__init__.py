@@ -34,7 +34,19 @@ from superstate.exception import (
 )
 from superstate.provider import Provider
 from superstate.machine import StateChart
-from superstate.model import Data, DataModel, DoneData
+from superstate.model import (
+    Assign,
+    Data,
+    DataModel,
+    DoneData,
+    If,
+    ElseIf,
+    Else,
+    ForEach,
+    Log,
+    Raise,
+    Script,
+)
 from superstate.state import (
     AtomicState,
     CompositeState,
@@ -67,16 +79,23 @@ __all__ = (
     'State',
     'ParallelState',
     'PseudoState',
-    # exceptions
+    # Exceptions
     'InvalidConfig',
     'InvalidState',
     'InvalidTransition',
     'ConditionNotSatisfied',
-    # helper functions
-    # 'states',
-    # 'state',
-    # 'transitions',
-    # 'transition',
+    # DataModel
+    'Assign',
+    'Data',
+    'DataModel',
+    'DoneData',
+    'If',
+    'ElseIf',
+    'Else',
+    'ForEach',
+    'Log',
+    'Raise',
+    'Script',
 )
 
 logging.config.dictConfig(LOGGING_CONFIG)

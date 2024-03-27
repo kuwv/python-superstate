@@ -46,7 +46,7 @@ class Transition:
         # https://www.w3.org/TR/scxml/#events
         self.event = kwargs.get('event', '')
         self.cond = kwargs.get('cond')  # XXX: should default to bool
-        self.target = kwargs['target']
+        self.target = kwargs.get('target', self)
         self.type = kwargs.get('type', 'internal')
         self.actions = kwargs.get('actions')
 
@@ -56,6 +56,7 @@ class Transition:
         if isinstance(settings, Transition):
             return settings
         if isinstance(settings, dict):
+            # print(settings['actions'] if 'actions' in settings else None)
             return cls(
                 event=settings.get('event', ''),
                 cond=(
@@ -63,7 +64,7 @@ class Transition:
                     if 'cond' in settings
                     else []
                 ),
-                target=settings['target'],  # XXX: should allow optional
+                target=settings.get('target'),
                 type=settings.get('type', 'internal'),
                 actions=(
                     tuple(map(Action.create, tuplize(settings['actions'])))

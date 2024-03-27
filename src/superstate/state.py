@@ -9,7 +9,6 @@ from typing import (
     Generator,
     List,
     Optional,
-    Sequence,
     Tuple,
     Union,
     cast,
@@ -28,7 +27,6 @@ from superstate.utils import lookup_subclasses, tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.model.data import Data
     from superstate.types import ActionTypes, Initial
 
 log = logging.getLogger(__name__)
@@ -81,7 +79,7 @@ class State:
     #     '__type',
     # ]
 
-    __datamodel: 'DataModel'
+    datamodel: 'DataModel'
     name: str = cast(str, Identifier())
 
     # pylint: disable-next=unused-argument
@@ -122,7 +120,11 @@ class State:
         self.__parent: Optional['CompositeState'] = None
         self.name = name
         self.__type = kwargs.get('type', 'atomic')
-        self.__datamodel = kwargs.pop('datamodel', DataModel([]))
+
+        self.datamodel = kwargs.pop('datamodel', DataModel([]))
+        self.datamodel.parent = self
+        if self.datamodel.binding == 'early':
+            self.datamodel.populate()
         # self.validate()
 
     def __eq__(self, other: object) -> bool:
@@ -131,17 +133,6 @@ class State:
         if isinstance(other, str):
             return self.name == other
         return False
-
-    def __getattr__(self, name: str) -> Any:
-        # do not attempt to resolve missing dunders
-        if name.startswith('__'):
-            raise AttributeError
-
-        # map data values as attributes
-        for i, data in enumerate(self.data):
-            if data.id == name:
-                return self.data[i].value
-        raise AttributeError(f"cannot find attribute: {name}")
 
     def __repr__(self) -> str:
         return repr(f"{self.__class__.__name__}({self.name})")
@@ -195,15 +186,10 @@ class State:
             return obj
         raise InvalidConfig('could not create state from provided settings')
 
-    @property
-    def datamodel(self) -> 'DataModel':
-        """Get datamodel data items."""
-        return self.__datamodel
-
-    @property
-    def data(self) -> Sequence['Data']:
-        """Get datamodel data items."""
-        return self.datamodel.data
+    # @property
+    # def datamodel(self) -> 'DataModel':
+    #     """Get datamodel data items."""
+    #     return self.datamodel
 
     @property
     def path(self) -> str:
@@ -302,6 +288,7 @@ class HistoryState(PseudoState):
     @property
     def history(self) -> str:
         """Return previous substate."""
+        # TODO: implement tail for shallow history
         return self.__history
 
 
@@ -386,6 +373,10 @@ class AtomicState(State):
         )
 
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+        if self.datamodel.binding == 'late' and not hasattr(
+            self.datamodel, 'maps'
+        ):
+            self.datamodel.populate()
         self._process_transient_state(ctx)
         if self.__on_entry:
             results = []

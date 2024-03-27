@@ -22,7 +22,7 @@ class Default(Provider):
 
     @staticmethod
     def __call(expr: Callable, *args: Any, **kwargs: Any) -> Any:
-        # print('--__call--', expr, args, kwargs)
+        # print('--call--', expr, args, kwargs)
         signature = inspect.signature(expr)
         if len(signature.parameters.keys()) != 0:
             return expr(*args, **kwargs)

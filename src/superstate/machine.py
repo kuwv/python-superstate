@@ -25,7 +25,7 @@ from superstate.exception import (
     InvalidTransition,
     ConditionNotSatisfied,
 )
-from superstate.model.data import Data, DataModel
+from superstate.model.data import DataModel
 from superstate.provider import PROVIDERS
 from superstate.state import (
     AtomicState,
@@ -67,12 +67,12 @@ class MetaStateChart(type):
             name = attrs.get('__name__', name.lower())
 
         initial = attrs.get('__initial__', None)
+        root = State.create(attrs.pop('state')) if 'state' in attrs else None
 
+        # setup datamodel
         binding = attrs.get('__binding__', DEFAULT_BINDING)
         if binding:
-            Data.binding = binding
-
-        root = State.create(attrs.pop('state')) if 'state' in attrs else None
+            DataModel.binding = binding
         provider = attrs.get('__datamodel__', DEFAULT_PROVIDER)
         if provider != DEFAULT_PROVIDER:
             DataModel.provider = PROVIDERS[provider]
@@ -168,6 +168,8 @@ class StateChart(metaclass=MetaStateChart):
                 )
         log.info('loaded states and transitions')
 
+        self.datamodel.populate()
+
         # self.parent.run_on_entry(self)
         self.current_state.run_on_entry(self)
         log.info('statechart initialization complete')
@@ -177,7 +179,7 @@ class StateChart(metaclass=MetaStateChart):
         if name.startswith('__'):
             raise AttributeError
 
-        # handle state check locally
+        # handle state check for active states
         if name.startswith('is_'):
             return name[3:] in self.active
 
@@ -188,11 +190,6 @@ class StateChart(metaclass=MetaStateChart):
                 return self.trigger('', *args, **kwargs)
 
             return wrapper
-
-        # map data values as attributes
-        for i, data in enumerate(self.datamodel.data):
-            if data.id == name:
-                return self.datamodel.data[i].value
         raise AttributeError(f"cannot find attribute: {name}")
 
     @property
@@ -201,13 +198,9 @@ class StateChart(metaclass=MetaStateChart):
         return self.__initial__
 
     @property
-    def data(self) -> List['Data']:
-        """Return the current state."""
-        return self.datamodel.data
-
-    @property
     def current_state(self) -> 'State':
         """Return the current state."""
+        # TODO: rename to head potentially
         return self.__current_state
 
     @property

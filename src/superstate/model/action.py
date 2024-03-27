@@ -39,12 +39,10 @@ class Assign(Action):
         """Provide callback from datamodel provider."""
         kwargs['__mode__'] = 'single'
         result = provider.exec(self.expr, *args, **kwargs)
-        for i, x in enumerate(provider.ctx.current_state.datamodel.data):
-            if x.id == self.location:
-                x.value = result
-                provider.ctx.current_state.datamodel.data[i] = x
-                break
-        # raise AttributeError('unable to set missing datamodel attribute.')
+        if self.location in provider.ctx.current_state.datamodel.keys():
+            provider.ctx.current_state.datamodel[self.location] = result
+        else:
+            raise AttributeError('unable to set missing datamodel attribute.')
 
 
 @dataclass
@@ -52,8 +50,8 @@ class ForEach(Action):
     """Data item providing state data."""
 
     content: InitVar[List[str]]
-    array: Sequence[Action]
-    item: Optional[str]
+    array: str
+    item: str
     index: Optional[str] = None  # expression
 
     def __post_init__(self, content: List[str]) -> None:
@@ -63,12 +61,7 @@ class ForEach(Action):
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
-        # XXX: really dislike data as an iterable
-        array = None
-        for x in provider.ctx.current_state.datamodel.data:
-            if x.id == self.array:
-                array = x.value
-                break
+        array = provider.ctx.current_state.datamodel[self.array]
         if array:
             for index, item in enumerate(array):
                 for expr in self.__content:
@@ -77,10 +70,10 @@ class ForEach(Action):
                     if self.item:
                         kwargs[self.item] = item
                     provider.handle(expr, *args, **kwargs)
-        # else:
-        #     raise AttributeError(
-        #         'unable to set missing datamodel attribute.'
-        #     )
+        else:
+            raise AttributeError(
+                'unable to iterate missing datamodel attribute.', self.array
+            )
 
 
 @dataclass

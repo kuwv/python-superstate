@@ -1,6 +1,7 @@
 """Provide common types for statechart components."""
 
 import json
+from collections import ChainMap
 from dataclasses import InitVar, dataclass
 from mimetypes import guess_type
 from typing import (
@@ -17,11 +18,12 @@ from typing import (
 from urllib.request import urlopen
 
 from superstate.provider import Default
-from superstate.exception import InvalidConfig
+from superstate.exception import InvalidConfig, SuperstateException
 
 # from superstate.utils import lookup_subclasses
 
 if TYPE_CHECKING:
+    from superstate.state import State
     from superstate.provider import Provider
 
 
@@ -32,23 +34,33 @@ class Data:
     id: str
     src: Optional[str] = None  # URI type
     expr: Optional[str] = None  # expression
-    # TODO: need a more comprehensive binding strategy that removes iteration
-    # for variable access
-    binding: ClassVar[str] = 'early'
-    content: InitVar[Optional[Any]] = None
+    settings: InitVar[Optional[Any]] = None
 
-    def __post_init__(self, content: Any = None) -> None:
+    def __post_init__(self, settings: Any) -> None:
         """Validate the data object."""
-        self.__value: Optional[Any] = content
-        if sum(1 for x in (self.expr, self.src, self.value) if x) > 1:
+        self.__value: Optional[Any] = settings if settings else None
+        if sum(1 for x in (self.__value, self.expr, self.src) if x) > 1:
             raise InvalidConfig(
                 'data contains mutually exclusive src and expr attributes'
             )
-        if Data.binding == 'early':
-            self.__initialize()
 
-    def __initialize(self) -> None:
-        """Process data attributes."""
+    @classmethod
+    def create(cls, settings: Union['Data', dict]) -> 'Data':
+        """Return data object for data mapper."""
+        if isinstance(settings, Data):
+            return settings
+        if isinstance(settings, dict):
+            return cls(
+                id=settings.pop('id'),
+                src=settings.pop('src', None),
+                expr=settings.pop('expr', None),
+                settings=settings,
+            )
+        raise InvalidConfig('could not find a valid data configuration')
+
+    @property
+    def value(self) -> Optional[Any]:
+        """Retrieve value from either expression or URL source."""
         # TODO: if binding is late:
         #   - src: should store the URL and then retrieve when accessed
         #   - expr: should store and evalute using the assign datamodel element
@@ -63,41 +75,21 @@ class Data:
                     self.__value = json.loads(content)
                 else:
                     raise InvalidConfig('data is unsupported type')
-
-    @classmethod
-    def create(cls, settings: Union['Data', dict]) -> 'Data':
-        """Return data object for data mapper."""
-        if isinstance(settings, Data):
-            return settings
-        if isinstance(settings, dict):
-            return cls(
-                id=settings.pop('id'),
-                src=settings.pop('src', None),
-                expr=settings.pop('expr', None),
-                content=settings,
-            )
-        raise InvalidConfig('could not find a valid data configuration')
-
-    @property
-    def value(self) -> Optional[Any]:
-        """Retrieve value from either expression or URL source."""
-        if Data.binding == 'late':
-            self.__initialize()
         return self.__value
-
-    @value.setter
-    def value(self, value: Any) -> None:
-        """Set the value of the data attribute."""
-        self.__value = value
 
 
 @dataclass
-class DataModel:
+class DataModel(ChainMap):
     """Instantiate state types from class metadata."""
 
     data: List['Data']
-    # binding: ClassVar[str] = 'early'
+    binding: ClassVar[str] = 'early'
     provider: ClassVar[Type['Provider']] = Default
+
+    def __post_init__(self) -> None:
+        """Validate the data object."""
+        self.__parent: Optional['State'] = None
+        # self.__provider: Optional['Provider'] = None
 
     @classmethod
     def create(cls, settings: Union['DataModel', dict]) -> 'DataModel':
@@ -111,6 +103,37 @@ class DataModel:
                 else []
             )
         raise InvalidConfig('could not find a valid data model configuration')
+
+    @property
+    def parent(self) -> Optional['State']:
+        """Get parent state."""
+        return self.__parent
+
+    @parent.setter
+    def parent(self, state: 'State') -> None:
+        if self.__parent is None:
+            self.__parent = state
+            # self.maps.insert(0, self.parent.datamodel)
+            # self.__provider = DataModel.provider(self.__parent)
+        else:
+            raise SuperstateException('cannot change parent for state')
+
+    def populate(self) -> None:
+        """Initialize the data items for the datamodel."""
+        # data = {}
+        # for x in self.data:
+        #     if x.expr:
+        #         data[x.id] = self.__provider.exec(x.expr)
+        #     if x.src:
+        #         content_type, _ = guess_type(x.src)
+        #         with urlopen(x.src) as rsp:
+        #             content = rsp.read()
+        #             if content_type == 'application/json':
+        #                 data[x.id] = json.loads(content)
+        #             else:
+        #                 raise InvalidConfig('data is unsupported type')
+        # super().__init__(data)
+        super().__init__({x.id: x.value for x in self.data})
 
 
 @dataclass
