@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "superstate"
-version = "1.5.0a0"
+version = "1.6.0a0"
 description = "Robust statechart for configurable automation rules."
 readme = "README.md"
 license = {file = "LICENSE"}
