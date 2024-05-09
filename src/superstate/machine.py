@@ -200,7 +200,7 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def current_state(self) -> 'State':
         """Return the current state."""
-        # TODO: rename to head potentially
+        # TODO: rename to head or position potentially
         return self.__current_state
 
     @property
@@ -420,6 +420,8 @@ class StateChart(metaclass=MetaStateChart):
         self, event: str, /, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Transition from event to target state."""
+        # NOTE: 'on' should register an event with an event loop for callback
+        # trigger
         # XXX: currently does not allow contional transient states
         transition = self.process_transitions(event, *args, **kwargs)
         if transition:

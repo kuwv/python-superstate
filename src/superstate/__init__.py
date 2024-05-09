@@ -35,6 +35,7 @@ from superstate.exception import (
 from superstate.provider import Provider
 from superstate.machine import StateChart
 from superstate.model import (
+    Action,
     Assign,
     Data,
     DataModel,

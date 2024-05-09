@@ -437,6 +437,9 @@ class CompositeState(AtomicState):
         """Return states."""
         raise NotImplementedError
 
+    children = states
+    ancestors = states
+
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
         raise NotImplementedError

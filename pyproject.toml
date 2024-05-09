@@ -44,10 +44,11 @@ dev = [
     "flake8>=3.8.3",
     "mypy>=0.942",
     "typing_extensions",
-    "pylint>=3.0.0",
+    "pylint<=3.0.0",
     "bandit>=1.6.2",
     "safety>=1.9",
     "pytest>=7",
+    "pytest-benchmark>=4",
     "pytest-cov>=2.10",
     "tox>=3.25.0",
 ]

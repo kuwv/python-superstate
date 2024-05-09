@@ -21,6 +21,10 @@ class App(StateChart):
     datamodel: Union[DataModel, Dict[str, Any]] = {
         'data': [
             # {'id': 'headers', 'src': 'http://headers.jsontest.com/'},
+            {
+                'id': 'schema',
+                'src': 'https://raw.githubusercontent.com/aws/serverless-application-model/develop/samtranslator/validator/sam_schema/schema.json',
+            },
             {'id': 'scheme', 'expr': 'https'},
             {'id': 'host', 'expr': 'example.com'},
             {'id': 'port'},
@@ -165,7 +169,8 @@ if __name__ == '__main__':
     # print(Data(id='headers', src='http://headers.jsontest.com/').value)
 
     app = App(logging_enabled=True, logging_level='info')
-    # print(app.data)
+    # print(app.datamodel)
+    print(app.datamodel.maps)
 
     print('default:', app.__datamodel__)
     print('name:', app.__name__)
@@ -184,6 +189,7 @@ if __name__ == '__main__':
     # print(app.current_state.datamodel.data)
     # print('entry time', app.current_state.entry_time)
     app.trigger('turn_on')
+    print(app.datamodel)
     assert app.current_state == 'on'
     # print(app.datamodel)
     # print(app.current_state.datamodel)
