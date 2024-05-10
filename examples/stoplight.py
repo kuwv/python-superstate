@@ -2,53 +2,51 @@
 
 import time
 
-from superstate import StateChart, state
+from superstate import StateChart
 
 
 class StopLight(StateChart):
     """Proide an object representing a stoplight."""
 
-    __state__ = state(
-        {
-            'name': 'stoplight',
-            'initial': 'red',
-            'states': [
-                {
-                    'name': 'red',
-                    'transitions': [
-                        {
-                            'event': 'turn_green',
-                            'target': 'green',
-                            'action': lambda: time.sleep(5),
-                        }
-                    ],
-                    'on_entry': lambda: print('Red light!'),
-                },
-                {
-                    'name': 'yellow',
-                    'transitions': [
-                        {
-                            'event': 'turn_red',
-                            'target': 'red',
-                            'action': lambda: time.sleep(5),
-                        }
-                    ],
-                    'on_entry': lambda: print('Yellow light!'),
-                },
-                {
-                    'name': 'green',
-                    'transitions': [
-                        {
-                            'event': 'turn_yellow',
-                            'target': 'yellow',
-                            'action': lambda: time.sleep(5),
-                        }
-                    ],
-                    'on_entry': lambda: print('Green light!'),
-                },
-            ],
-        }
-    )
+    state = {
+        'name': 'stoplight',
+        'initial': 'red',
+        'states': [
+            {
+                'name': 'red',
+                'transitions': [
+                    {
+                        'event': 'turn_green',
+                        'target': 'green',
+                        'actions': lambda: time.sleep(5),
+                    }
+                ],
+                'on_entry': lambda: print('Red light!'),
+            },
+            {
+                'name': 'yellow',
+                'transitions': [
+                    {
+                        'event': 'turn_red',
+                        'target': 'red',
+                        'actions': lambda: time.sleep(5),
+                    }
+                ],
+                'on_entry': lambda: print('Yellow light!'),
+            },
+            {
+                'name': 'green',
+                'transitions': [
+                    {
+                        'event': 'turn_yellow',
+                        'target': 'yellow',
+                        'actions': lambda: time.sleep(5),
+                    }
+                ],
+                'on_entry': lambda: print('Green light!'),
+            },
+        ],
+    }
 
 
 if __name__ == '__main__':

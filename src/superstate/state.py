@@ -9,24 +9,25 @@ from typing import (
     Generator,
     List,
     Optional,
-    Sequence,
     Tuple,
     Union,
     cast,
 )
 
-from superstate.exception import InvalidConfig, InvalidTransition
-from superstate.model import DataModel
+from superstate.exception import (
+    InvalidConfig,
+    InvalidTransition,
+    SuperstateException,
+)
+from superstate.model.base import Action
+from superstate.model.data import DataModel
 from superstate.transition import Transition
 from superstate.types import Identifier
 from superstate.utils import lookup_subclasses, tuplize
 
-# from superstate.model import Identifier
-
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.model import Data
-    from superstate.types import EventActions, Initial
+    from superstate.types import ActionTypes, Initial
 
 log = logging.getLogger(__name__)
 
@@ -38,8 +39,8 @@ log = logging.getLogger(__name__)
 #     _type: Optional[str]
 #     _states: List['State']
 #     _transitions: List['State']
-#     _on_entry: Optional['EventActions']
-#     _on_exit: Optional['EventActions']
+#     _on_entry: Optional['ActionTypes']
+#     _on_exit: Optional['ActionTypes']
 #
 #     def __new__(
 #         cls,
@@ -47,12 +48,12 @@ log = logging.getLogger(__name__)
 #         bases: Tuple[type, ...],
 #         attrs: Dict[str, Any],
 #     ) -> 'MetaState':
-#         _initial = attrs.pop('__initial__', None)
-#         _kind = attrs.pop('__type__', None)
-#         _states = attrs.pop('__states__', None)
-#         _transitions = attrs.pop('__transitions__', None)
-#         _on_entry = attrs.pop('__on_entry__', None)
-#         _on_exit = attrs.pop('__on_exit__', None)
+#         _initial = attrs.pop('initial', None)
+#         _kind = attrs.pop('type', None)
+#         _states = attrs.pop('states', None)
+#         _transitions = attrs.pop('transitions', None)
+#         _on_entry = attrs.pop('on_entry', None)
+#         _on_exit = attrs.pop('on_exit', None)
 #
 #         obj = type.__new__(cls, name, bases, attrs)
 #         obj._initial = _initial
@@ -78,9 +79,8 @@ class State:
     #     '__type',
     # ]
 
-    __datamodel: Optional['DataModel']
+    datamodel: 'DataModel'
     name: str = cast(str, Identifier())
-    current_state: 'State'
 
     # pylint: disable-next=unused-argument
     def __new__(cls, *args: Any, **kwargs: Any) -> 'State':
@@ -101,7 +101,7 @@ class State:
             else:
                 kind = 'parallel'
         # elif _transitions:
-        #     kind = 'conditional'
+        #     kind = 'evaluator'
         else:
             kind = 'atomic'
 
@@ -113,48 +113,19 @@ class State:
     def __init__(
         self,  # pylint: disable=unused-argument
         name: str,
-        *args: Any,
+        # settings: Optional[Dict[str, Any]] = None,
+        # /,
         **kwargs: Any,
     ) -> None:
         self.__parent: Optional['CompositeState'] = None
         self.name = name
         self.__type = kwargs.get('type', 'atomic')
-        self.__datamodel = kwargs.pop('datamodel', None)
-        # self.__ctx: Optional['StateChart'] = None
-        # self.validate()
 
-    @classmethod
-    def create(
-        cls, settings: Union['State', dict, str]
-    ) -> Union['CompositeState', 'State']:
-        """Create state from configuration."""
-        obj = None
-        if isinstance(settings, State):
-            obj = settings
-        elif isinstance(settings, dict):
-            obj = settings.pop('factory', State)(
-                name=settings.get('name', 'root'),
-                initial=settings.get('initial'),
-                type=settings.get('type'),
-                datamodel=DataModel.create(settings.get('datamodel', {})),
-                states=(
-                    list(map(State.create, settings['states']))
-                    if 'states' in settings
-                    else []
-                ),
-                transitions=(
-                    list(map(Transition.create, settings['transitions']))
-                    if 'transitions' in settings
-                    else []
-                ),
-                on_entry=settings.get('on_entry'),
-                on_exit=settings.get('on_exit'),
-            )
-        elif isinstance(settings, str):
-            obj = State(settings)
-        if obj:
-            return obj
-        raise InvalidConfig('could not create state from provided settings')
+        self.datamodel = kwargs.pop('datamodel', DataModel([]))
+        self.datamodel.parent = self
+        if self.datamodel.binding == 'early':
+            self.datamodel.populate()
+        # self.validate()
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
@@ -172,22 +143,58 @@ class State:
             yield target
             target = target.parent
 
-    @property
-    def datamodel(self) -> Optional['DataModel']:
-        """Get datamodel data items."""
-        return self.__datamodel
+    @classmethod
+    def create(
+        cls, settings: Union['State', dict, str]
+    ) -> Union['CompositeState', 'State']:
+        """Create state from configuration."""
+        obj = None
+        if isinstance(settings, State):
+            obj = settings
+        elif isinstance(settings, dict):
+            obj = settings.pop('factory', State)(
+                name=settings.get('name', 'root'),
+                initial=settings.get('initial'),
+                type=settings.get('type'),
+                datamodel=DataModel.create(
+                    settings.get('datamodel', {'data': {}})
+                ),
+                states=(
+                    list(map(State.create, settings['states']))
+                    if 'states' in settings
+                    else []
+                ),
+                transitions=(
+                    list(map(Transition.create, settings['transitions']))
+                    if 'transitions' in settings
+                    else []
+                ),
+                on_entry=(
+                    tuple(map(Action.create, tuplize(settings['on_entry'])))
+                    if 'on_entry' in settings
+                    else None
+                ),
+                on_exit=(
+                    tuple(map(Action.create, tuplize(settings['on_exit'])))
+                    if 'on_exit' in settings
+                    else []
+                ),
+            )
+        elif isinstance(settings, str):
+            obj = State(settings)
+        if obj:
+            return obj
+        raise InvalidConfig('could not create state from provided settings')
 
-    @property
-    def data(self) -> Sequence['Data']:
-        """Get datamodel data items."""
-        return self.__datamodel.data if self.__datamodel else ()
+    # @property
+    # def datamodel(self) -> 'DataModel':
+    #     """Get datamodel data items."""
+    #     return self.datamodel
 
     @property
     def path(self) -> str:
         """Get the statepath of this state."""
-        return '.'.join(
-            reversed([x.name for x in reversed(self)])  # type: ignore
-        )
+        return '.'.join(reversed([x.name for x in reversed(self)]))
 
     # @property
     # def relpath(self) -> str:
@@ -226,17 +233,7 @@ class State:
         if self.__parent is None:
             self.__parent = state
         else:
-            raise Exception('cannot change parent for state')
-
-    # def ctx(self) -> Optional['StateChart']:
-    #     """Get current ctx of the statechart."""
-    #     return self.__ctx
-
-    # @ctx.setter
-    # def ctx(self, ctx: 'StateChart') -> None:
-    #     """Set the current ctx of the statechart."""
-    #     if not self.ctx:
-    #         self.__ctx = ctx
+            raise SuperstateException('cannot change parent for state')
 
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         """Run on-entry tasks."""
@@ -264,10 +261,10 @@ class ConditionState(PseudoState):
 
     __transitions: List['Transition']
 
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
         self.__transitions = kwargs.pop('transitions', [])
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
 
     @property
     def transitions(self) -> Tuple['Transition', ...]:
@@ -284,46 +281,42 @@ class HistoryState(PseudoState):
 
     __history: str
 
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, name: str, **kwargs: Any) -> None:
         self.__history = kwargs.get('history', 'shallow')
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
 
     @property
     def history(self) -> str:
         """Return previous substate."""
+        # TODO: implement tail for shallow history
         return self.__history
 
 
 class FinalState(State):
     """Provide final state for a statechart."""
 
-    __on_entry: Optional['EventActions']
+    __on_entry: Optional['ActionTypes']
 
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, name: str, **kwargs: Any) -> None:
         # if 'donedata' in kwargs:
         #     self.__data = kwargs.pop('donedata')
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
         self.__on_entry = kwargs.get('on_entry')
 
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
         # NOTE: SCXML Processor MUST generate the event done.state.id after
         # completion of the <onentry> elements
         if self.__on_entry:
-            Executor = (
-                ctx.datamodel.executor
-                if ctx.datamodel and ctx.datamodel.executor
-                else None
+            executor = ctx.datamodel.provider(ctx)
+            results = []
+            for expression in self.__on_entry:
+                results.append(
+                    executor.handle(expression)
+                )  # *args, **kwargs))
+            log.info(
+                "executed 'on_entry' state change action for %s", self.name
             )
-            if Executor:
-                executor = Executor(ctx)
-                result = tuple(
-                    executor.run(x)  # , *args, **kwargs)
-                    for x in tuplize(self.__on_entry)
-                )
-                log.info(
-                    "executed 'on_entry' state change action for %s", self.name
-                )
-                return result
+            return results
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
@@ -334,23 +327,24 @@ class AtomicState(State):
     """Provide an atomic state for a statechart."""
 
     __transitions: List['Transition']
-    __on_entry: Optional['EventActions']
-    __on_exit: Optional['EventActions']
+    __on_entry: Optional['ActionTypes']
+    __on_exit: Optional['ActionTypes']
 
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
         self.__transitions = kwargs.pop('transitions', [])
         for transition in self.transitions:
             self.__register_transition_callback(transition)
         self.__on_entry = kwargs.pop('on_entry', None)
         self.__on_exit = kwargs.pop('on_exit', None)
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
 
     def __register_transition_callback(self, transition: 'Transition') -> None:
         # XXX: currently mapping to class instead of instance
         setattr(
             self,
             transition.event if transition.event != '' else '_auto_',
+            # pylint: disable-next=unnecessary-dunder-call
             transition.callback().__get__(self, self.__class__),
         )
 
@@ -379,43 +373,36 @@ class AtomicState(State):
         )
 
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+        if self.datamodel.binding == 'late' and not hasattr(
+            self.datamodel, 'maps'
+        ):
+            self.datamodel.populate()
         self._process_transient_state(ctx)
         if self.__on_entry:
-            Executor = (
-                ctx.datamodel.executor
-                if ctx.datamodel and ctx.datamodel.executor
-                else None
+            results = []
+            executor = ctx.datamodel.provider(ctx)
+            for expression in self.__on_entry:
+                results.append(
+                    executor.handle(expression)
+                )  # *args, **kwargs))
+            log.info(
+                "executed 'on_entry' state change action for %s", self.name
             )
-            if Executor:
-                executor = Executor(ctx)
-                result = tuple(
-                    executor.run(x)  # , *args, **kwargs)
-                    # ctx.datamodel.executor(ctx).run(x)  # , *args, **kwargs)
-                    for x in tuplize(self.__on_entry)
-                )
-                log.info(
-                    "executed 'on_entry' state change action for %s", self.name
-                )
-                return result
+            return results
         return None
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         if self.__on_exit:
-            Executor = (
-                ctx.datamodel.executor
-                if ctx.datamodel and ctx.datamodel.executor
-                else None
+            results = []
+            executor = ctx.datamodel.provider(ctx)
+            for expression in self.__on_exit:
+                results.append(
+                    executor.handle(expression)
+                )  # *args, **kwargs))
+            log.info(
+                "executed 'on_exit' state change action for %s", self.name
             )
-            if Executor:
-                executor = Executor(ctx)
-                result = tuple(
-                    executor.run(x)  # , *args, **kwargs)
-                    for x in tuplize(self.__on_exit)
-                )
-                log.info(
-                    "executed 'on_exit' state change action for %s", self.name
-                )
-                return result
+            return results
         return None
 
 
@@ -450,6 +437,9 @@ class CompositeState(AtomicState):
         """Return states."""
         raise NotImplementedError
 
+    children = states
+    ancestors = states
+
     def add_state(self, state: 'State') -> None:
         """Add substate to this state."""
         raise NotImplementedError
@@ -466,29 +456,29 @@ class CompositeState(AtomicState):
 class CompoundState(CompositeState):
     """Provide nested state capabilitiy."""
 
-    # __state: 'State'
+    # __current: 'State'
     initial: 'Initial'
     final: 'FinalState'
 
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
-        # self.__state = self
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        # self.__current = self
         self.__states = {}
         for state in kwargs.pop('states', []):
             state.parent = self
             self.__states[state.name] = state
         self.initial = kwargs.pop('initial')
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
 
     # @property
     # def substate(self) -> 'State':
     #     """Current substate of this state."""
-    #     return self.__state
+    #     return self.__current
 
     # @substate.setter
     # def substate(self, state: 'State') -> None:
     #     """Set current substate of this state."""
     #     try:
-    #         self.__state = self.states[state.name]
+    #         self.__current = self.states[state.name]
     #     except KeyError as err:
     #         raise InvalidState(
     #             f"substate could not be found: {state.name}"
@@ -525,8 +515,8 @@ class CompoundState(CompositeState):
                 ctx.change_state(initial)
         results: List[Any] = []
         results += filter(None, [super().run_on_entry(ctx)])
-        if hasattr(ctx.state, 'initial') and ctx.state.initial:
-            ctx.change_state(ctx.state.initial)
+        if hasattr(ctx.current_state, 'initial') and ctx.current_state.initial:
+            ctx.change_state(ctx.current_state.initial)
         return tuple(results) if results else None
 
     # def validate(self) -> None:
@@ -553,13 +543,13 @@ class ParallelState(CompositeState):
 
     __states: Dict[str, 'State']
 
-    def __init__(self, name: str, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize compound state."""
         self.__states = {}
         for x in kwargs.pop('states', []):
             x.parent = self
             self.__states[x.name] = x
-        super().__init__(name, *args, **kwargs)
+        super().__init__(name, **kwargs)
 
     @property
     def states(self) -> Dict[str, 'State']:

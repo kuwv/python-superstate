@@ -6,7 +6,7 @@ from superstate import StateChart, State, Transition
 class Door(StateChart):
     """Provide door example for testing."""
 
-    __state__ = {
+    state = {
         'initial': 'closed',
         'states': [
             {
@@ -27,13 +27,13 @@ door.add_transition(
 
 def test_it_responds_to_an_event() -> None:
     """Test door responds to an event."""
-    assert hasattr(door.state, 'crack')
+    assert hasattr(door.current_state, 'crack')
 
 
 def test_event_changes_state_when_called() -> None:
     """Test event changes state when called."""
     door.trigger('crack')
-    assert door.state == 'broken'
+    assert door.current_state == 'broken'
 
 
 def test_it_informs_all_its_states() -> None:
@@ -45,4 +45,4 @@ def test_it_informs_all_its_states() -> None:
 def test_individuation_does_not_affect_other_instances() -> None:
     """Test individuation does not affect other instances."""
     another_door = Door()
-    assert not hasattr(another_door.state, 'crack')
+    assert not hasattr(another_door.current_state, 'crack')

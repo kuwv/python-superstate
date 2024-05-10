@@ -8,7 +8,7 @@ from superstate import InvalidTransition, StateChart
 class Machine(StateChart):
     """Provide example statechart."""
 
-    __state__ = {
+    state = {
         'name': 'engine',
         'initial': 'stopped',
         'states': [
@@ -40,29 +40,29 @@ class Machine(StateChart):
 #     """Test auto-trigger."""
 #     machine = Machine()
 #     assert machine.initial == 'stopped'
-#     assert machine.state == 'stopped'
+#     assert machine.current_state == 'stopped'
 
 
 def test_auto_trigger() -> None:
     """Test auto-trigger."""
     machine = Machine(autostart=True)
     assert machine.initial == 'stopped'
-    assert machine.state == 'started'
+    assert machine.current_state == 'started'
 
 
 def test_self_trigger() -> None:
     """Test self trigger."""
     machine = Machine(autostart=True)
-    # assert machine.state == 'started'
+    # assert machine.current_state == 'started'
     machine.trigger('restart')
-    assert machine.state == 'started'
+    assert machine.current_state == 'started'
 
 
 def test_final_trigger() -> None:
     """Test final trigger."""
     machine = Machine(autostart=True)
-    assert machine.state == 'started'
+    assert machine.current_state == 'started'
     machine.trigger('stop')
-    assert machine.state.type == 'final'
+    assert machine.current_state.type == 'final'
     with pytest.raises(InvalidTransition):
         machine.trigger('sabotage')

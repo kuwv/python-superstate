@@ -4,13 +4,13 @@ import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from superstate.exception import InvalidConfig
-
+from superstate.model import Action, Conditional
 from superstate.types import Selection, Identifier
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
-    from superstate.types import EventActions, GuardConditions
+    from superstate.types import ActionTypes
 
 log = logging.getLogger(__name__)
 
@@ -21,35 +21,34 @@ class Transition:
     """Represent statechart transition.
 
     [Definition: A transition matches an event if at least one of its event
-    descriptors matches the event's name. ]
+    descriptors matches the event's name.]
 
     [Definition: An event descriptor matches an event name if its string of
     tokens is an exact match or a prefix of the set of tokens in the event's
-    name. In all cases, the token matching is case sensitive. ]
+    name. In all cases, the token matching is case sensitive.]
     """
 
-    # __slots__ = ['event', 'target', 'action', 'cond']
-    event: str = cast(str, Identifier(EVENT_PATTERN))
-    target: str = cast(str, Identifier())
-    kind: str = cast(str, Selection('internal', 'external'))
+    # __slots__ = ['event', 'target', 'action', 'cond', 'type']
 
-    def __init__(  # pylint: disable=too-many-arguments
+    event: str = cast(str, Identifier(EVENT_PATTERN))
+    cond: Optional['ActionTypes']
+    target: str = cast(str, Identifier())
+    type: str = cast(str, Selection('internal', 'external'))
+    actions: Optional['ActionTypes']
+
+    def __init__(
         self,
-        event: str,
-        target: str,  # XXX target can be self-transition
-        action: Optional['EventActions'] = None,  # TODO: switch to splat
-        cond: Optional['GuardConditions'] = None,  # XXX: should default True
-        kind: str = 'internal',
-        # **kwargs: Any,
+        # settings: Optional[Dict[str, Any]] = None,
+        # /,
+        **kwargs: Any,
     ) -> None:
         """Transition from one state to another."""
         # https://www.w3.org/TR/scxml/#events
-        self.event = event
-        self.target = target
-        self.action = action
-        self.cond = cond
-        self.kind = kind
-        self.actions: Optional['EventActions'] = None
+        self.event = kwargs.get('event', '')
+        self.cond = kwargs.get('cond')  # XXX: should default to bool
+        self.target = kwargs.get('target', self)
+        self.type = kwargs.get('type', 'internal')
+        self.actions = kwargs.get('actions')
 
     @classmethod
     def create(cls, settings: Union['Transition', dict]) -> 'Transition':
@@ -57,12 +56,21 @@ class Transition:
         if isinstance(settings, Transition):
             return settings
         if isinstance(settings, dict):
+            # print(settings['actions'] if 'actions' in settings else None)
             return cls(
                 event=settings.get('event', ''),
-                target=settings['target'],  # XXX: should allow optional
-                action=settings.get('action'),
-                cond=settings.get('cond'),
-                # kind=settings.get('type', 'internal'),
+                cond=(
+                    tuple(map(Conditional.create, tuplize(settings['cond'])))
+                    if 'cond' in settings
+                    else []
+                ),
+                target=settings.get('target'),
+                type=settings.get('type', 'internal'),
+                actions=(
+                    tuple(map(Action.create, tuplize(settings['actions'])))
+                    if 'actions' in settings
+                    else []
+                ),
             )
         raise InvalidConfig('could not find a valid transition configuration')
 
@@ -83,20 +91,14 @@ class Transition:
             )
         else:
             target = self.target
+
         results = None
-        if self.action:
-            Executor = (
-                ctx.datamodel.executor
-                if ctx.datamodel and ctx.datamodel.executor
-                else None
-            )
-            if Executor:
-                log.info("executed action event for %r", self.event)
-                executor = Executor(ctx)
-                results = tuple(
-                    executor.run(command, *args, **kwargs)
-                    for command in tuplize(self.action)
-                )
+        if self.actions:
+            results = []
+            provider = ctx.datamodel.provider(ctx)
+            for expression in tuplize(self.actions):
+                results.append(provider.handle(expression, *args, **kwargs))
+            log.info("executed action event for %r", self.event)
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
         return results
@@ -113,18 +115,12 @@ class Transition:
         return event
 
     def evaluate(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
-        """Evaluate guards of transition."""
-        results = True
+        """Evaluate conditionss of transition."""
+        result = True
         if self.cond:
-            GuardModel = (
-                ctx.datamodel.conditional
-                if ctx.datamodel and ctx.datamodel.conditional
-                else None
-            )
-            if GuardModel:
-                guard = GuardModel(ctx)
-                for condition in tuplize(self.cond):
-                    results = guard.check(condition, *args, **kwargs)
-                    if results is False:
-                        break
-        return results
+            provider = ctx.datamodel.provider(ctx)
+            for expression in tuplize(self.cond):
+                result = provider.handle(expression, *args, **kwargs)
+                if result is False:
+                    break
+        return result

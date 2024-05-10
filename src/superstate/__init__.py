@@ -21,18 +21,33 @@
 """Robust statechart for configurable automation rules."""
 
 import logging
+import logging.config
 
 # from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, Union
 
-from superstate import config
+from superstate.config import LOGGING_CONFIG
 from superstate.exception import (
     InvalidConfig,
     InvalidState,
     InvalidTransition,
-    GuardNotSatisfied,
+    ConditionNotSatisfied,
 )
+from superstate.provider import Provider
 from superstate.machine import StateChart
-from superstate.model import Data, DataModel
+from superstate.model import (
+    Action,
+    Assign,
+    Data,
+    DataModel,
+    DoneData,
+    If,
+    ElseIf,
+    Else,
+    ForEach,
+    Log,
+    Raise,
+    Script,
+)
 from superstate.state import (
     AtomicState,
     CompositeState,
@@ -50,7 +65,7 @@ __author__ = 'Jesse P. Johnson'
 __author_email__ = 'jpj6652@gmail.com'
 __title__ = 'superstate'
 __description__ = 'Compact statechart that can be vendored.'
-__version__ = '1.2.0a0'
+__version__ = '1.6.0a0'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2022 Jesse Johnson.'
 __all__ = (
@@ -65,17 +80,24 @@ __all__ = (
     'State',
     'ParallelState',
     'PseudoState',
-    # exceptions
+    # Exceptions
     'InvalidConfig',
     'InvalidState',
     'InvalidTransition',
-    'GuardNotSatisfied',
-    # helper functions
-    # 'states',
-    # 'state',
-    # 'transitions',
-    # 'transition',
+    'ConditionNotSatisfied',
+    # DataModel
+    'Assign',
+    'Data',
+    'DataModel',
+    'DoneData',
+    'If',
+    'ElseIf',
+    'Else',
+    'ForEach',
+    'Log',
+    'Raise',
+    'Script',
 )
 
-log = logging.getLogger(__name__)
-log.addHandler(logging.NullHandler())
+logging.config.dictConfig(LOGGING_CONFIG)
+logging.getLogger(__name__).addHandler(logging.NullHandler())

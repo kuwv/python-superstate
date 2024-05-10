@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "superstate"
-version = "1.2.0a0"
+version = "1.6.0a0"
 description = "Robust statechart for configurable automation rules."
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -24,34 +24,49 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Software Development :: Libraries",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries"
+]
+dependencies = [
+   "RestrictedPython"
+   # "structlog"
 ]
 
 [project.optional-dependencies]
+# message passing (grpc, rpc, pydispatcher)
 # io = ["aiohttp[speedups]"]
 # history = ["eventsourcing"]
-ecmascript = ["js2py"]  # "jyserver"
+ecmascript = ["js2py"]  # "STPyV8", "jyserver"
 scxml = ["xmltodict"]
-dev = [
+build = [
+    "build",
     "proman-versioning>=0.5.0-alpha.2",
-    "pylint>=2.9.5",
+    "twine"
+]
+dev = [
+    # test
+    "pytest>=7",
+    "pytest-benchmark>=4",
+    "pytest-cov>=2.10.0",
+    "tox>=3.25.0",
+    # sca
+    "mypy>=1",
+    "typing_extensions",
+    "pylint>=3",
+    # style
     "black==22.3.0",
     "isort>=5.10.1",
     "flake8>=3.8.3",
-    "mypy>=0.942",
-    "pylint>=2.9.5",
+    # sast
     "bandit>=1.6.2",
-    "safety>=1.9",
-    "pytest>=7",
-    "pytest-cov>=2.10",
-    "tox>=3.25.0",
+    "safety>=1.9.0"
 ]
 docs = [
     "docstr-coverage>=1.2.0",
     "mkdocs>=1.2",
     "mkdocs-material>=7.2",
     "mkdocstrings>=0.15.2",
-    "pydocstyle[toml]>=6.1.1",
+    "pydocstyle[toml]>=6.1.1"
 ]
 
 [project.urls]
@@ -75,7 +90,7 @@ pattern = "__version__ == '${version}'"
 [tool.pydocstyle]
 ignore = [
     "D203",
-    "D213",
+    "D213"
 ]
 
 [tool.pylint]
@@ -83,9 +98,11 @@ fail-under = 9.0
 
 [tool.pylint."MESSAGES CONTROL"]
 disable = [
-    "R0903",
     "C0103",
-    "W0715",
+    "R0903",
+    "W0122",
+    "W0123",
+    "W0715"
 ]
 
 [tool.pylint."FORMAT"]
@@ -106,10 +123,13 @@ exclude = '''
 (
   /(
     | \.git
+    | \.github
     | \.mypy_cache
     | \.pytest_cache
     | build
     | dist
+    | docs
+    | site
   )
 )
 '''
@@ -118,7 +138,7 @@ exclude = '''
 disallow_untyped_defs = true
 exclude = [
     "examples",
-    "tests",
+    "tests"
 ]
 ignore_missing_imports = true
 warn_incomplete_stub = true
@@ -129,5 +149,5 @@ warn_unused_ignores = true
 addopts = "--doctest-modules"
 testpaths = [
     "docs",
-    "tests",
+    "tests"
 ]

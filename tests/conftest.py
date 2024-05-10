@@ -10,7 +10,7 @@ from superstate import StateChart
 class Switch(StateChart):
     """Example switch that can be toggled."""
 
-    __state__ = {
+    state = {
         'initial': 'off',
         'states': [
             {
@@ -49,7 +49,7 @@ def switches() -> Tuple['Switch', 'Switch']:
 class Fan(StateChart):
     """Example fan."""
 
-    __state__ = {
+    state = {
         'name': 'motor',
         'initial': 'off',
         'states': [

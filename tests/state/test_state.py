@@ -5,7 +5,7 @@ from superstate import StateChart
 
 def test_it_defines_states():
     class MyMachine(StateChart):
-        __state__ = {
+        state = {
             'initial': 'read',
             'states': [
                 {'name': 'unread'},
@@ -21,19 +21,19 @@ def test_it_defines_states():
 
 def test_it_has_an_initial():
     class MyMachine(StateChart):
-        __state__ = {
+        state = {
             'initial': 'closed',
             'states': [{'name': 'open'}, {'name': 'closed'}],
         }
 
     machine = MyMachine()
     assert machine.parent.initial == 'closed'
-    assert machine.state == 'closed'
+    assert machine.current_state == 'closed'
 
 
 def test_it_defines_states_using_method_calls():
     class MyMachine(StateChart):
-        __state__ = {
+        state = {
             'initial': 'unread',
             'states': [
                 {
@@ -53,7 +53,7 @@ def test_it_defines_states_using_method_calls():
     assert machine.states == ('unread', 'read', 'closed')
 
     class OtherMachine(StateChart):
-        __state__ = {
+        state = {
             'initial': 'idle',
             'states': [
                 {
@@ -75,7 +75,7 @@ def test_its_initial_may_be_a_callable():
         return True
 
     class Person(StateChart):
-        __state__ = {
+        state = {
             'initial': (
                 lambda person: (person.working and is_business_hours())
                 and 'awake'
@@ -89,7 +89,7 @@ def test_its_initial_may_be_a_callable():
             super().__init__()
 
     person = Person(working=True)
-    assert person.state == 'awake'
+    assert person.current_state == 'awake'
 
     person = Person(working=False)
-    assert person.state == 'sleeping'
+    assert person.current_state == 'sleeping'

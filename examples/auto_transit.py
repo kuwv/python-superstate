@@ -6,7 +6,7 @@ from superstate import StateChart
 class Machine(StateChart):
     """Example machine that will auto-transition on entry."""
 
-    __state__ = {
+    state = {
         'name': 'engine',
         'initial': 'stopped',
         'states': [

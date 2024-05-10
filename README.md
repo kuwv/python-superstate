@@ -9,52 +9,49 @@ Robust statechart for configurable automation rules.
 A very simple example taken from specs.
 
 ```python
->>> from superstate import StateChart, state
+>>> from superstate import StateChart
 
 >>> class SimpleMachine(StateChart):
-...     __superstate__ = state(
-...         {
-...             'name': 'machine',
-...             'initial': 'created',
-...             'states': [
-...                 {
-...                     'name': 'created',
-...                     'transitions': [
-...                         {'event': 'queue', 'target': 'waiting'},
-...                         {'event': 'cancel', 'target': 'canceled'},
-...                     ],
-...                 },
-...                 {
-...                     'name': 'waiting',
-...                     'transitions': [
-...                         {'event': 'process', 'target': 'processed'},
-...                         {'event': 'cancel', 'target': 'canceled'},
-...                     ]
-...                 },
-...                 {'name': 'processed'},
-...                 {'name': 'canceled'},
-...             ]
-...         }
-...     )
+...     state = {
+...         'initial': 'created',
+...         'states': [
+...             {
+...                 'name': 'created',
+...                 'transitions': [
+...                     {'event': 'queue', 'target': 'waiting'},
+...                     {'event': 'cancel', 'target': 'canceled'},
+...                 ],
+...             },
+...             {
+...                 'name': 'waiting',
+...                 'transitions': [
+...                     {'event': 'process', 'target': 'processed'},
+...                     {'event': 'cancel', 'target': 'canceled'},
+...                 ]
+...             },
+...             {'name': 'processed'},
+...             {'name': 'canceled'},
+...         ]
+...     }
 
 >>> machine = SimpleMachine()
->>> machine.state
+>>> machine.current_state
 'AtomicState(created)'
 
 >>> machine.trigger('queue')
->>> machine.state
+>>> machine.current_state
 'AtomicState(waiting)'
 
 >>> machine.trigger('process')
->>> machine.state
+>>> machine.current_state
 'AtomicState(processed)'
 
 >>> cancel_machine = SimpleMachine()
->>> cancel_machine.state
+>>> cancel_machine.current_state
 'AtomicState(created)'
 
 >>> cancel_machine.trigger('cancel')
->>> cancel_machine.state
+>>> cancel_machine.current_state
 'AtomicState(canceled)'
 
 ```

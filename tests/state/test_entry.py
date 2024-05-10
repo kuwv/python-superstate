@@ -4,7 +4,7 @@ from superstate import StateChart
 
 
 class ActionMachine(StateChart):
-    __state__ = {
+    state = {
         'initial': 'created',
         'states': [
             {

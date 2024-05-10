@@ -13,7 +13,7 @@ def lookup_subclasses(obj: Type[T]) -> Set[Type[T]]:
 
 
 def to_bool(value: Union[bool, int, str]) -> bool:
-    """Convert a string truth statement to conditional."""
+    """Convert truthy statement to boolean."""
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -22,7 +22,7 @@ def to_bool(value: Union[bool, int, str]) -> bool:
         return True
     if value in ('n', 'no', 'f', 'false', 'off', '0', 0):
         return False
-    raise ValueError(f"invalid truth value {value!r}")
+    raise ValueError(f"invalid truthy statement: {value!r}")
 
 
 def tuplize(value: Any) -> Tuple[Any, ...]:
