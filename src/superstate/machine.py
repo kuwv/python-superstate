@@ -77,6 +77,7 @@ class MetaStateChart(type):
         if provider != DEFAULT_PROVIDER:
             DataModel.provider = PROVIDERS[provider]
         datamodel = DataModel.create(attrs.pop('datamodel', {'data': []}))
+        # XXX: chaining datamodels not working
         # datamodel['data'].append({'id': 'root', 'expr': root})
 
         obj = super().__new__(mcs, name, bases, attrs)
@@ -139,6 +140,8 @@ class StateChart(metaclass=MetaStateChart):
         if hasattr(self.__class__, '_root'):
             self.__root = deepcopy(self.__class__._root)
             self._root = None
+        elif 'superstate' in kwargs:
+            self.__root = kwargs.pop('superstate')
         else:
             raise InvalidConfig('attempted initialization with empty parent')
         self.__current_state = self.__root
@@ -170,6 +173,7 @@ class StateChart(metaclass=MetaStateChart):
 
         self.datamodel.populate()
 
+        # XXX: require composite state
         # self.parent.run_on_entry(self)
         self.current_state.run_on_entry(self)
         log.info('statechart initialization complete')

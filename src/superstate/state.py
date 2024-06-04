@@ -511,11 +511,16 @@ class CompoundState(CompositeState):
             initial = (
                 self.initial(ctx) if callable(self.initial) else self.initial
             )
-            if initial:
+            if initial and ctx.current_state != initial:
                 ctx.change_state(initial)
         results: List[Any] = []
         results += filter(None, [super().run_on_entry(ctx)])
-        if hasattr(ctx.current_state, 'initial') and ctx.current_state.initial:
+        # XXX: self transitions should still be possible here
+        if (
+            hasattr(ctx.current_state, 'initial')
+            and ctx.current_state.initial
+            and ctx.current_state.initial != ctx.current_state
+        ):
             ctx.change_state(ctx.current_state.initial)
         return tuple(results) if results else None
 

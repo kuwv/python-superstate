@@ -42,7 +42,9 @@ class Assign(Action):
         if self.location in provider.ctx.current_state.datamodel.keys():
             provider.ctx.current_state.datamodel[self.location] = result
         else:
-            raise AttributeError('unable to set missing datamodel attribute.')
+            raise AttributeError(
+                f"unable to set missing datamodel attribute: {self.location}"
+            )
 
 
 @dataclass
