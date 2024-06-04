@@ -64,7 +64,7 @@ class Data:
         # TODO: if binding is late:
         #   - src: should store the URL and then retrieve when accessed
         #   - expr: should store and evalute using the assign datamodel element
-        if self.expr:
+        if self.expr is not None:
             # TODO: use action or script specified in datamodel
             self.__value = self.expr
         if self.src:
@@ -119,7 +119,7 @@ class DataModel(ChainMap):
             raise SuperstateException('cannot change parent for state')
 
     def populate(self) -> None:
-        """Initialize the data items for the datamodel."""
+        """Populate the data items for the datamodel."""
         # data = {}
         # for x in self.data:
         #     if x.expr:
