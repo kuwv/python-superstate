@@ -1,6 +1,6 @@
 """Test that instances maintain individuation."""
 
-from superstate import StateChart, State, Transition
+from superstate import State, StateChart, Transition
 
 
 class Door(StateChart):

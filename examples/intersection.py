@@ -3,7 +3,7 @@
 import time
 from typing import Callable, Union
 
-from superstate import StateChart, State, Transition
+from superstate import State, StateChart, Transition
 
 
 class StopLight(State):
