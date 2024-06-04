@@ -9,44 +9,54 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: 'Set up Python 3.10'
-        uses: actions/setup-python@4.5.0
+      - uses: actions/checkout@v4
+      - name: 'Set up Python 3.11'
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install .[docs]
+          pip install '.[docs]'
       - name: Lint documentation
-        run: |
-          invoke doc.lint
-          invoke doc.test
+        run: pydocstyle **/*.py --verbose
   build:
     runs-on: ubuntu-latest
     needs: lint
     steps:
-      - uses: actions/checkout@v2
-      - name: 'Set up Python 3.10'
-        uses: actions/setup-python@4.5.0
+      - uses: actions/checkout@v4
+      - name: 'Set up Python 3.11'
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install .[docs]
+          pip install '.[docs]'
       - name: Perform documentation tests
-        run: |
-          invoke doc.coverage
-          invoke doc.build
+        run: mkdocs build
   test:
     runs-on: ubuntu-latest
+    needs: build
     steps:
-      - uses: actions/checkout@v2
-      - name: 'Set up Python 3.10'
-        uses: actions/setup-python@4.5.0
+      - uses: actions/checkout@v4
+      - name: 'Set up Python 3.11'
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-      - name: Lint documentation
-        run: |
-          python -m doctest README.md examples
+          python-version: '3.11'
+      - name: Test readme examples
+        run: python -m doctest README.md
+      - name: Check documentation coverage
+        run: docstr-coverage **/*.py
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: 'Set up Python 3.11'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Publish documentation
+        run: mkdocs gh-deploy
