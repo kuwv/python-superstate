@@ -29,7 +29,7 @@ classifiers = [
 ]
 dependencies = [
    "RestrictedPython",
-   "typing_extensions",
+   "typing_extensions"
    # "structlog"
 ]
 
