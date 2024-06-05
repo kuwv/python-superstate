@@ -28,7 +28,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries"
 ]
 dependencies = [
-   "RestrictedPython"
+   "RestrictedPython",
+   "typing_extensions",
    # "structlog"
 ]
 
@@ -51,7 +52,6 @@ dev = [
     "tox>=3.25.0",
     # sca
     "mypy>=1",
-    "typing_extensions",
     "pylint>=3",
     # style
     "black==22.3.0",
