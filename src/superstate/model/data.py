@@ -69,12 +69,15 @@ class Data:
             self.__value = self.expr
         if self.src:
             content_type, _ = guess_type(self.src)
-            with urlopen(self.src) as rsp:
-                content = rsp.read()
-                if content_type == 'application/json':
-                    self.__value = json.loads(content)
-                else:
-                    raise InvalidConfig('data is unsupported type')
+            if self.src.lower().startswith('http'):
+                with urlopen(self.src) as rsp:  # nosec
+                    content = rsp.read()
+                    if content_type == 'application/json':
+                        self.__value = json.loads(content)
+                    else:
+                        raise InvalidConfig('data is unsupported type')
+            else:
+                raise InvalidConfig('data is unsupported type')
         return self.__value
 
 

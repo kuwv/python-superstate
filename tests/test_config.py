@@ -1,10 +1,6 @@
 import pytest
 
-from superstate import (
-    InvalidConfig,
-    StateChart,
-    State,
-)
+from superstate import InvalidConfig, State, StateChart
 
 
 def test_it_requires_minimal_state() -> None:

@@ -63,7 +63,7 @@ class Default(Provider):
             return to_bool(guard)
         code = compile(expr, '<string>', 'eval')
         # pylint: disable-next=eval-used
-        return eval(code, self.globals, self.locals)
+        return eval(code, self.globals, self.locals)  # nosec
 
     @singledispatchmethod
     def exec(
@@ -104,5 +104,5 @@ class Default(Provider):
         values = self.locals.copy()
         values['__results__'] = None
         code = compile(f"__results__ = {expr}", '<string>', mode)
-        exec(code, self.globals, values)  # pylint: disable=exec-used
+        exec(code, self.globals, values)  # pylint: disable=exec-used  # nosec
         return values['__results__']

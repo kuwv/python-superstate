@@ -1,6 +1,6 @@
 """Provide system info for statechart components."""
 
-from typing import NotRequired, TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class HostInfo(TypedDict):
