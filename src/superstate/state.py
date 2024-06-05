@@ -194,7 +194,9 @@ class State:
     @property
     def path(self) -> str:
         """Get the statepath of this state."""
-        return '.'.join(reversed([x.name for x in reversed(self)]))
+        return '.'.join(
+            reversed([x.name for x in reversed(self)])  # type: ignore
+        )
 
     # @property
     # def relpath(self) -> str:

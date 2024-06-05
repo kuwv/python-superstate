@@ -155,7 +155,8 @@ class StateChart(metaclass=MetaStateChart):
                 if hasattr(self.root, 'initial')
                 else self.root
             )
-        self.current_state._process_transient_state(self)
+        if isinstance(self.current_state, AtomicState):
+            self.current_state._process_transient_state(self)
         # TODO: deprecate callable initial state
         if self.root == self.current_state:
             initial = (
@@ -240,7 +241,7 @@ class StateChart(metaclass=MetaStateChart):
     def active(self) -> Tuple['State', ...]:
         """Return active states."""
         states: List['State'] = []
-        parents = list(reversed(self.current_state))
+        parents = list(reversed(self.current_state))  # type: ignore
         for i, x in enumerate(parents):
             n = i + 1
             if not n >= len(parents) and isinstance(parents[n], ParallelState):
