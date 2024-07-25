@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-EVENT_PATTERN = r'^(([a-zA-Z][a-zA-Z0-9:\.\-_]*(\.\*)?)|\*)?$'
+TRANSITION_PATTERN = r'^(([a-zA-Z][a-zA-Z0-9:\.\-_]*(\.\*)?)|\*)?$'
 
 
 class Transition:
@@ -30,9 +30,9 @@ class Transition:
 
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
 
-    event: str = cast(str, Identifier(EVENT_PATTERN))
+    event: str = cast(str, Identifier(TRANSITION_PATTERN))
     cond: Optional['ActionTypes']
-    target: str = cast(str, Identifier())
+    target: str = cast(str, Identifier(TRANSITION_PATTERN))
     type: str = cast(str, Selection('internal', 'external'))
     actions: Optional['ActionTypes']
 
@@ -46,7 +46,7 @@ class Transition:
         # https://www.w3.org/TR/scxml/#events
         self.event = kwargs.get('event', '')
         self.cond = kwargs.get('cond')  # XXX: should default to bool
-        self.target = kwargs.get('target', self)
+        self.target = kwargs.get('target', '')
         self.type = kwargs.get('type', 'internal')
         self.actions = kwargs.get('actions')
 
@@ -64,7 +64,7 @@ class Transition:
                     if 'cond' in settings
                     else []
                 ),
-                target=settings.get('target'),
+                target=settings.get('target', ''),
                 type=settings.get('type', 'internal'),
                 actions=(
                     tuple(map(Action.create, tuplize(settings['actions'])))

@@ -198,6 +198,9 @@ class State:
             reversed([x.name for x in reversed(self)])  # type: ignore
         )
 
+    # descendents
+    # ancestors
+
     # @property
     # def relpath(self) -> str:
     #     if self.path == target:

@@ -123,19 +123,6 @@ class DataModel(ChainMap):
 
     def populate(self) -> None:
         """Populate the data items for the datamodel."""
-        # data = {}
-        # for x in self.data:
-        #     if x.expr:
-        #         data[x.id] = self.__provider.exec(x.expr)
-        #     if x.src:
-        #         content_type, _ = guess_type(x.src)
-        #         with urlopen(x.src) as rsp:
-        #             content = rsp.read()
-        #             if content_type == 'application/json':
-        #                 data[x.id] = json.loads(content)
-        #             else:
-        #                 raise InvalidConfig('data is unsupported type')
-        # super().__init__(data)
         super().__init__({x.id: x.value for x in self.data})
 
 
