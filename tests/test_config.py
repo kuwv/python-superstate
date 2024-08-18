@@ -7,7 +7,7 @@ def test_it_requires_minimal_state() -> None:
     class MyMachine(StateChart):
         """Machine to validate config."""
 
-    # There must be at least two states
+    # There must be at least two states.
     with pytest.raises(InvalidConfig):
         MyMachine()
 
@@ -16,7 +16,7 @@ def test_it_requires_minimal_state() -> None:
 
         state = {'states': [State('open')]}
 
-    # There must be at least two states
+    # There must be at least two states.
     with pytest.raises(InvalidConfig):
         OtherMachine()
 
@@ -27,7 +27,7 @@ def test_it_requires_an_initial() -> None:
 
         state = {'states': [State('open'), State('closed')]}
 
-    # There must be at least two states
+    # There must be an initial state.
     with pytest.raises(InvalidConfig):
         MyMachine()
 
@@ -39,6 +39,6 @@ def test_it_requires_an_initial() -> None:
             'states': [State('open'), State('closed')],
         }
 
-    # An initial state must exist.
+    # An initial state must not be none.
     with pytest.raises(InvalidConfig):
         AnotherMachine()
