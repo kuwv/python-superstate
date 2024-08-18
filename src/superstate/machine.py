@@ -164,6 +164,7 @@ class StateChart(metaclass=MetaStateChart):
                 if callable(self.__initial__)
                 else self.__initial__
             )
+            # XXX: initial state is set when parallel
             if initial:
                 self.__current_state = self.get_state(initial)
             elif not isinstance(self.__root, ParallelState):
@@ -250,9 +251,9 @@ class StateChart(metaclass=MetaStateChart):
                 states.append(x)
         return tuple(states)
 
-    def __get_relpath(self, target: str) -> str:
+    def get_relpath(self, target: str) -> str:
         """Get relative statepath of target state to current state."""
-        if self.current_state == target:
+        if target in ('', self.current_state):
             relpath = '.'
         else:
             path = ['']
@@ -262,9 +263,11 @@ class StateChart(metaclass=MetaStateChart):
                 zip_longest(source_path, target_path, fillvalue='')
             ):
                 if x[0] != x[1]:
-                    if x[0] != '':
+                    if x[0] != '':  # target is child
                         path.extend(['' for x in source_path[i:]])
-                    if x[1] != '':
+                    if x[1] == '':  # target is (grand)parent
+                        path.extend([''])
+                    if x[1] != '':  # target is child of (grand)parent
                         path.extend(target_path[i:])
                     if i == 0:
                         raise InvalidPath(
@@ -276,23 +279,22 @@ class StateChart(metaclass=MetaStateChart):
 
     def change_state(self, statepath: str) -> None:
         """Traverse statepath."""
-        relpath = self.__get_relpath(statepath)
-        if relpath == '.':
+        relpath = self.get_relpath(statepath)
+        if relpath == '.':  # handle self transition
             self.current_state.run_on_exit(self)
             self.current_state.run_on_entry(self)
         else:
-            macrostep = relpath.split('.')
-            for index, microstep in enumerate(macrostep):
+            s = 2 if relpath.endswith('.') else 1  # stupid black
+            macrostep = relpath.split('.')[s:]
+            for microstep in macrostep:
                 try:
-                    if microstep == '':
-                        if index == 0:
-                            continue
+                    if microstep == '':  # reverse
                         self.current_state.run_on_exit(self)
                         self.__current_state = self.active[1]
                     elif (
                         isinstance(self.current_state, CompositeState)
                         and microstep in self.current_state.states.keys()
-                    ):
+                    ):  # forward
                         state = self.current_state.states[microstep]
                         self.__current_state = state
                         state.run_on_entry(self)
