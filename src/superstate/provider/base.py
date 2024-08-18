@@ -70,7 +70,7 @@ class Provider(ABC):
         from datetime import datetime
 
         glb = dict(self.ctx.datamodel)
-        # glb['__builtins__'] = {}
+        glb['__builtins__'] = {}
         glb['datetime'] = datetime
         return glb
 
