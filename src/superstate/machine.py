@@ -153,7 +153,7 @@ class StateChart(metaclass=MetaStateChart):
             self.__initial__ = (
                 self.root.initial
                 if hasattr(self.root, 'initial')
-                else self.root
+                else self.root.name
             )
         if isinstance(self.current_state, AtomicState):
             self.current_state._process_transient_state(self)
@@ -253,7 +253,7 @@ class StateChart(metaclass=MetaStateChart):
 
     def get_relpath(self, target: str) -> str:
         """Get relative statepath of target state to current state."""
-        if target in ('', self.current_state):
+        if target in ('', self.current_state):  # self reference
             relpath = '.'
         else:
             path = ['']
@@ -263,11 +263,11 @@ class StateChart(metaclass=MetaStateChart):
                 zip_longest(source_path, target_path, fillvalue='')
             ):
                 if x[0] != x[1]:
-                    if x[0] != '':  # target is child
+                    if x[0] != '':  # target is a descendent
                         path.extend(['' for x in source_path[i:]])
-                    if x[1] == '':  # target is (grand)parent
+                    if x[1] == '':  # target is a ascendent
                         path.extend([''])
-                    if x[1] != '':  # target is child of (grand)parent
+                    if x[1] != '':  # target is child of a ascendent
                         path.extend(target_path[i:])
                     if i == 0:
                         raise InvalidPath(

@@ -86,24 +86,25 @@ class State:
     def __new__(cls, *args: Any, **kwargs: Any) -> 'State':
         """Return state type."""
         kind = kwargs.get('type')
-        states = kwargs.get('states')
-        # transitions = kwargs.get('transitions')
-        # if states and transitions:
-        #     # for transition in self.transitions:
-        #     #     if transition == '':
-        #     #         kind = 'transient'
-        #     #         break
-        #     # else:
-        #     kind = 'compound'
-        if states:
-            if 'initial' in kwargs:
-                kind = 'compound'
+        if kind is None:
+            states = kwargs.get('states')
+            # transitions = kwargs.get('transitions')
+            # if states and transitions:
+            #     # for transition in self.transitions:
+            #     #     if transition == '':
+            #     #         kind = 'transient'
+            #     #         break
+            #     # else:
+            #     kind = 'compound'
+            if states:
+                if 'initial' in kwargs:
+                    kind = 'compound'
+                else:
+                    kind = 'parallel'
+            # elif _transitions:
+            #     kind = 'evaluator'
             else:
-                kind = 'parallel'
-        # elif _transitions:
-        #     kind = 'evaluator'
-        else:
-            kind = 'atomic'
+                kind = 'atomic'
 
         for subclass in lookup_subclasses(cls):
             if subclass.__name__.lower().startswith(kind):
@@ -331,9 +332,9 @@ class FinalState(State):
 class AtomicState(State):
     """Provide an atomic state for a statechart."""
 
-    __transitions: List['Transition']
     __on_entry: Optional['ActionTypes']
     __on_exit: Optional['ActionTypes']
+    __transitions: List['Transition']
 
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
@@ -510,6 +511,7 @@ class CompoundState(CompositeState):
         #     ...
         # XXX: initial can be None
         if not self.initial:
+            # if initial is None default is first child
             raise InvalidConfig('an initial state must exist for statechart')
         # TODO: deprecate callable initial state
         if self.initial:
