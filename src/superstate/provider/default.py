@@ -3,7 +3,7 @@
 import inspect
 from collections.abc import Callable
 from functools import singledispatchmethod
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 # from superstate.exception import InvalidAction  # InvalidConfig
 from superstate.provider.base import Provider
@@ -68,11 +68,13 @@ class Default(Provider):
     @singledispatchmethod
     def exec(
         self,
-        expr: Union[Callable, str],
+        expr: Optional[Union[Callable, str]],
         *args: Any,
         **kwargs: Any,
     ) -> Any:
         """Evaluate expr."""
+        if expr is None:
+            return None
         raise NotImplementedError(
             'datamodel cannot execute provided expression type', expr
         )

@@ -69,22 +69,15 @@ class Provider(ABC):
         # pylint: disable=import-outside-toplevel
         from datetime import datetime
 
-        glb = dict(self.ctx.root.datamodel)
-        # glb = {x.id: x.value for x in self.ctx.data}
-        # glb['__builtins__'] = {}
+        glb = dict(self.ctx.datamodel)
+        glb['__builtins__'] = {}
         glb['datetime'] = datetime
         return glb
 
     @property
     def locals(self) -> Dict[str, Any]:
         """Get local attributes and methods available for eval and exec."""
-        # return {
-        #     x: getattr(self.ctx, x)
-        #     for x in dir(self.ctx)
-        #     # if not x.startswith('__')
-        # }
         lcl = dict(self.ctx.current_state.datamodel)
-        # lcl = {x.id: x.value for x in self.ctx.current_state.data}
         lcl['In'] = self.In
         return lcl
 

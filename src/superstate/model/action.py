@@ -2,7 +2,7 @@
 
 import logging
 import logging.config
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, asdict, dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -39,8 +39,14 @@ class Assign(Action):
         """Provide callback from datamodel provider."""
         kwargs['__mode__'] = 'single'
         result = provider.exec(self.expr, *args, **kwargs)
+
         if self.location in provider.ctx.current_state.datamodel.keys():
             provider.ctx.current_state.datamodel[self.location] = result
+        elif (
+            self.location in provider.ctx.datamodel.keys()
+            or self.location in asdict(provider.ctx.datamodel).keys()
+        ):
+            provider.ctx.datamodel[self.location] = result
         else:
             raise AttributeError(
                 f"unable to set missing datamodel attribute: {self.location}"
