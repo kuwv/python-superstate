@@ -126,13 +126,6 @@ class StateChart(metaclass=MetaStateChart):
         **kwargs: Any,
     ) -> None:
         if 'logging_enabled' in kwargs and kwargs['logging_enabled']:
-            # handler = logging.StreamHandler()
-            # formatter = kwargs.pop(
-            #     'logging_format',
-            #     '%(name)s :: %(levelname)-8s :: %(message)s',
-            # )
-            # handler.setFormatter(logging.Formatter(fmt=formatter))
-            # log.addHandler(handler)
             if 'logging_level' in kwargs:
                 log.setLevel(kwargs.pop('logging_level').upper())
         log.info('initializing statechart')
@@ -140,12 +133,6 @@ class StateChart(metaclass=MetaStateChart):
         self._sessionid = UUID(
             bytes=os.urandom(16), version=4  # pylint: disable=no-member
         )
-        self.__initial = kwargs.get('initial')
-
-        # for i, data in enumerate(self.datamodel.data):
-        #     if data['id'] == 'root':
-        #         self.__root = self.datamodel.data.pop(i)['expr']
-        #         break
 
         if hasattr(self.__class__, '_root'):
             self.__root = deepcopy(self.__class__._root)
@@ -155,11 +142,16 @@ class StateChart(metaclass=MetaStateChart):
         else:
             raise InvalidConfig('attempted initialization with empty parent')
 
+        self.__initial__: Optional[str] = kwargs.get(
+            'initial', self.__initial__
+        )
+
         self.__current_state = self.__root
         self.datamodel.populate()
 
-        if isinstance(self.current_state, AtomicState):
-            self.current_state._process_transient_state(self)
+        # XXX: need to process after initial state
+        # if isinstance(self.current_state, AtomicState):
+        #     self.current_state._process_transient_state(self)
 
         if self.root == self.current_state:
             # XXX: initial state is set when parallel
@@ -197,14 +189,14 @@ class StateChart(metaclass=MetaStateChart):
     @property
     def initial(self) -> str:
         """Return initial state of current parent."""
-        if not self.__initial:
+        if self.__initial__ is None:
             if hasattr(self.root, 'initial'):
-                self.__initial = self.root.initial
+                self.__initial__ = self.root.initial
             elif self.root.states:
-                self.__initial = list(self.root.states.values())[0].name
+                self.__initial__ = list(self.root.states.values())[0].name
             else:
-                self.__initial = self.root.name
-        return self.__initial
+                self.__initial__ = self.root.name
+        return self.__initial__
 
     @property
     def current_state(self) -> 'State':
