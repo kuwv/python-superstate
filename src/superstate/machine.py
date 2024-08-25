@@ -19,11 +19,11 @@ from uuid import UUID
 
 from superstate.config import DEFAULT_BINDING, DEFAULT_PROVIDER
 from superstate.exception import (
+    ConditionNotSatisfied,
     InvalidConfig,
     InvalidPath,
     InvalidState,
     InvalidTransition,
-    ConditionNotSatisfied,
 )
 from superstate.model.data import DataModel
 from superstate.provider import PROVIDERS
@@ -94,6 +94,15 @@ class MetaStateChart(type):
 class StateChart(metaclass=MetaStateChart):
     """Represent statechart capabilities."""
 
+    #     The configuration contains exactly one child of the <scxml> element.
+    #     The configuration contains one or more atomic states.
+    #     When the configuration contains an atomic state, it contains all of
+    #         its <state> and <parallel> ancestors.
+    #     When the configuration contains a non-atomic <state>, it contains one
+    #         and only one of the state's states.
+    #     If the configuration contains a <parallel> state, it contains all of
+    #         its states.
+
     # __slots__ = [
     #     '__dict__', '__current_state', '__parent', '__root', 'initial'
     # ]
@@ -131,6 +140,7 @@ class StateChart(metaclass=MetaStateChart):
         self._sessionid = UUID(
             bytes=os.urandom(16), version=4  # pylint: disable=no-member
         )
+        self.__initial = kwargs.get('initial')
 
         # for i, data in enumerate(self.datamodel.data):
         #     if data['id'] == 'root':
@@ -144,36 +154,22 @@ class StateChart(metaclass=MetaStateChart):
             self.__root = kwargs.pop('superstate')
         else:
             raise InvalidConfig('attempted initialization with empty parent')
-        self.__current_state = self.__root
 
-        # initial setup
-        if 'initial' in kwargs:
-            self.__initial__ = kwargs['initial']
-        if not self.__initial__:
-            self.__initial__ = (
-                self.root.initial
-                if hasattr(self.root, 'initial')
-                else self.root.name
-            )
+        self.__current_state = self.__root
+        self.datamodel.populate()
+
         if isinstance(self.current_state, AtomicState):
             self.current_state._process_transient_state(self)
-        # TODO: deprecate callable initial state
+
         if self.root == self.current_state:
-            initial = (
-                self.__initial__(self)
-                if callable(self.__initial__)
-                else self.__initial__
-            )
             # XXX: initial state is set when parallel
-            if initial:
-                self.__current_state = self.get_state(initial)
+            if self.initial:
+                self.__current_state = self.get_state(self.initial)
             elif not isinstance(self.__root, ParallelState):
                 raise InvalidConfig(
                     'an initial state must exist for statechart'
                 )
         log.info('loaded states and transitions')
-
-        self.datamodel.populate()
 
         # XXX: require composite state
         # self.parent.run_on_entry(self)
@@ -199,9 +195,16 @@ class StateChart(metaclass=MetaStateChart):
         raise AttributeError(f"cannot find attribute: {name}")
 
     @property
-    def initial(self) -> 'Initial':
+    def initial(self) -> str:
         """Return initial state of current parent."""
-        return self.__initial__
+        if not self.__initial:
+            if hasattr(self.root, 'initial'):
+                self.__initial = self.root.initial
+            elif self.root.states:
+                self.__initial = list(self.root.states.values())[0].name
+            else:
+                self.__initial = self.root.name
+        return self.__initial
 
     @property
     def current_state(self) -> 'State':

@@ -126,7 +126,7 @@ class State:
         self.datamodel.parent = self
         if self.datamodel.binding == 'early':
             self.datamodel.populate()
-        # self.validate()
+        self.validate()
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
@@ -156,6 +156,12 @@ class State:
             obj = settings.pop('factory', State)(
                 name=settings.get('name', 'root'),
                 initial=settings.get('initial'),
+                # TODO: standardize initial state
+                # initial=(
+                #     InitialState.create(settings['initial'])
+                #     if 'initial' in settings
+                #     else None
+                # ),
                 type=settings.get('type'),
                 datamodel=DataModel.create(
                     settings.get('datamodel', {'data': {}})
@@ -249,6 +255,9 @@ class State:
         """Run on-exit tasks."""
         # raise NotImplementedError
 
+    def validate(self) -> None:
+        """Validate the current state configuration."""
+
 
 class PseudoState(State):
     """Provide state for statechart."""
@@ -296,6 +305,68 @@ class HistoryState(PseudoState):
         """Return previous substate."""
         # TODO: implement tail for shallow history
         return self.__history
+
+
+class InitialState(PseudoState):
+    """A pseudostate that provides the initial transition of compound state."""
+
+    __transitions: List['Transition']
+
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        """Initialize atomic state."""
+        self.__transitions = kwargs.pop('transitions', [])
+        super().__init__(name, **kwargs)
+
+    @classmethod
+    def create(
+        cls, settings: Union['State', dict, str]
+    ) -> Union['CompositeState', 'State']:
+        """Create state from configuration."""
+        obj = None
+        if isinstance(settings, State):
+            obj = settings
+        elif isinstance(settings, dict):
+            obj = settings.pop('factory', State)(
+                name=settings.get('name', 'initial'),
+                transitions=(
+                    list(map(Transition.create, settings['transitions']))
+                    if 'transitions' in settings
+                    else []
+                ),
+            )
+        elif isinstance(settings, str):
+            obj = InitialState(
+                name='initial', transitions=[Transition(target=settings)]
+            )
+        if obj:
+            return obj
+        raise InvalidConfig('could not create state from provided settings')
+
+    @property
+    def transitions(self) -> Tuple['Transition', ...]:
+        """Return transitions of this state."""
+        return tuple(self.__transitions)
+
+    def validate(self) -> None:
+        """Validate state to ensure conformance with type requirements."""
+        if len(self.transitions) != 1:
+            raise InvalidConfig('initial state must contain one transition')
+        # Transition must specify non-empty target.
+        if self.transitions[0].target == '':
+            raise InvalidConfig(
+                'initial transition must specify non-empty "target" attribute'
+            )
+        # Transition must not contain 'cond' attributes.
+        if self.transitions[0].cond is not None:
+            raise InvalidConfig(
+                'initial transition must not contain "cond" attribute'
+            )
+        # Transition must not contain 'event' attributes.
+        if self.transitions[0].event != '':
+            raise InvalidConfig(
+                'initial transition must not contain "event" attribute'
+            )
+        # Transition may contain executable content.
 
 
 class FinalState(State):
@@ -543,7 +614,6 @@ class CompoundState(CompositeState):
     #     If the configuration contains a <parallel> state, it contains all of
     #         its states.
     #     """
-
     #     if len(self.__states) < 1:
     #         raise InvalidConfig('There must be one or more states')
     #     if not self.initial:
@@ -595,7 +665,7 @@ class ParallelState(CompositeState):
 
     # def validate(self) -> None:
     #     # TODO: empty statemachine should default to null event
-    #     if self.type == 'compund':
+    #     if self.type == 'compound':
     #         if len(self.__states) < 2:
     #             raise InvalidConfig('There must be at least two states')
     #         if not self.initial:
