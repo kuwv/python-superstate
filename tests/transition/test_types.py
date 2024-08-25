@@ -1,5 +1,7 @@
 """Test state types and respective transitions."""
 
+from typing import Any
+
 import pytest
 
 from superstate import InvalidTransition, StateChart
@@ -10,7 +12,7 @@ class Machine(StateChart):
 
     state = {
         'name': 'engine',
-        'initial': 'stopped',
+        'initial': 'engine',
         'states': [
             {
                 'name': 'started',
@@ -30,23 +32,23 @@ class Machine(StateChart):
         ],
     }
 
-    def __init__(self, autostart: bool = False) -> None:
+    def __init__(self, autostart: bool = False, **kwargs: Any) -> None:
         self.autostart = autostart
-        super().__init__()
+        super().__init__(**kwargs)
 
 
 # XXX: does not work with conditional tranient states
-# def test_initial_state() -> None:
-#     """Test auto-trigger."""
-#     machine = Machine()
-#     assert machine.initial == 'stopped'
-#     assert machine.current_state == 'stopped'
+def test_initial_state() -> None:
+    """Test auto-trigger."""
+    machine = Machine(initial='stopped')
+    assert machine.initial == 'stopped'
+    assert machine.current_state == 'stopped'
 
 
 def test_auto_trigger() -> None:
     """Test auto-trigger."""
     machine = Machine(autostart=True)
-    assert machine.initial == 'stopped'
+    assert machine.initial == 'engine'
     assert machine.current_state == 'started'
 
 
