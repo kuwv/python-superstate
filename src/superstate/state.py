@@ -126,6 +126,7 @@ class State:
         self.datamodel.parent = self
         if self.datamodel.binding == 'early':
             self.datamodel.populate()
+        self.transition: Optional['Transition'] = None
         self.validate()
 
     def __eq__(self, other: object) -> bool:
@@ -315,6 +316,8 @@ class InitialState(PseudoState):
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
         self.__transitions = kwargs.pop('transitions', [])
+        if self.transitions:
+            self.transition = self.transitions[0]
         super().__init__(name, **kwargs)
 
     @classmethod
@@ -483,7 +486,7 @@ class AtomicState(State):
         return None
 
 
-class CompositeState(AtomicState):
+class CompositeState(AtomicState):  # wtf was I thinking here
     """Provide composite abstract to define nested state types."""
 
     __stack: List['State']
@@ -628,9 +631,9 @@ class ParallelState(CompositeState):
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize compound state."""
         self.__states = {}
-        for x in kwargs.pop('states', []):
-            x.parent = self
-            self.__states[x.name] = x
+        for state in kwargs.pop('states', []):
+            state.parent = self
+            self.__states[state.name] = state
         super().__init__(name, **kwargs)
 
     @property

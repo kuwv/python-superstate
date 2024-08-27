@@ -134,6 +134,8 @@ class StateChart(metaclass=MetaStateChart):
             bytes=os.urandom(16), version=4  # pylint: disable=no-member
         )
 
+        self.datamodel.populate()
+
         if hasattr(self.__class__, '_root'):
             self.__root = deepcopy(self.__class__._root)
             self._root = None
@@ -142,31 +144,22 @@ class StateChart(metaclass=MetaStateChart):
         else:
             raise InvalidConfig('attempted initialization with empty parent')
 
-        self.__initial__: Optional[str] = kwargs.get(
-            'initial', self.__initial__
-        )
-
         self.__current_state = self.__root
-        self.datamodel.populate()
+        if not isinstance(self.__root, ParallelState):
+            self.__initial__: Optional[str] = kwargs.get(
+                'initial', self.__initial__
+            )
+            if self.initial:
+                self.__current_state = self.get_state(self.initial)
+        log.info('loaded states and transitions')
+
+        # XXX: require composite state
+        self.current_state.run_on_entry(self)
+        log.info('statechart initialization complete')
 
         # XXX: need to process after initial state
         # if isinstance(self.current_state, AtomicState):
         #     self.current_state._process_transient_state(self)
-
-        if self.root == self.current_state:
-            # XXX: initial state is set when parallel
-            if self.initial:
-                self.__current_state = self.get_state(self.initial)
-            elif not isinstance(self.__root, ParallelState):
-                raise InvalidConfig(
-                    'an initial state must exist for statechart'
-                )
-        log.info('loaded states and transitions')
-
-        # XXX: require composite state
-        # self.parent.run_on_entry(self)
-        self.current_state.run_on_entry(self)
-        log.info('statechart initialization complete')
 
     def __getattr__(self, name: str) -> Any:
         # do not attempt to resolve missing dunders
@@ -187,7 +180,7 @@ class StateChart(metaclass=MetaStateChart):
         raise AttributeError(f"cannot find attribute: {name}")
 
     @property
-    def initial(self) -> str:
+    def initial(self) -> Optional[str]:
         """Return initial state of current parent."""
         if self.__initial__ is None:
             if hasattr(self.root, 'initial'):
@@ -195,7 +188,7 @@ class StateChart(metaclass=MetaStateChart):
             elif self.root.states:
                 self.__initial__ = list(self.root.states.values())[0].name
             else:
-                self.__initial__ = self.root.name
+                self.__initial__ = None
         return self.__initial__
 
     @property
