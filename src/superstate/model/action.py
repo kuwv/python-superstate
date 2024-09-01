@@ -140,17 +140,17 @@ class Script(Action):
 class If(Conditional):
     """Data item providing state data."""
 
-    actions: Sequence['ExecutableContent']
+    content: Sequence['ExecutableContent']
 
     def __post_init__(self) -> None:
-        self.actions = [Action.create(x) for x in self.actions]
+        self.content = [Action.create(x) for x in self.content]
 
     def callback(
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
         if provider.eval(self.cond, *args, **kwargs):
-            for action in self.actions:
+            for action in self.content:
                 return provider.handle(action, *args, **kwargs)
         return None
 
@@ -164,15 +164,15 @@ class ElseIf(If):
 class Else(Conditional):
     """Data item providing state data."""
 
-    actions: Sequence[Action]
+    content: Sequence[Action]
 
     def __post_init__(self) -> None:
         self.cond = True
-        self.actions = [Action.create(x) for x in self.actions]  # type: ignore
+        self.content = [Action.create(x) for x in self.content]  # type: ignore
 
     def callback(
         self, provider: 'Provider', *args: Any, **kwargs: Any
     ) -> None:
         """Provide callback from datamodel provider."""
-        for action in self.actions:
+        for action in self.content:
             provider.handle(action, *args, **kwargs)

@@ -1,6 +1,6 @@
 """Provide common models for statechart components."""
 
-from superstate.model.base import Action, Conditional
+from superstate.model.base import Action, Conditional, ExecutableContent
 from superstate.model.action import (
     Assign,
     If,

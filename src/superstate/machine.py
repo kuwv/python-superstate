@@ -150,7 +150,10 @@ class StateChart(metaclass=MetaStateChart):
                 'initial', self.__initial__
             )
             if self.initial:
-                self.__current_state = self.get_state(self.initial)
+                self.__current_state = self.get_state(
+                    self.initial
+                    # self.initial.transition.target
+                )
         log.info('loaded states and transitions')
 
         # XXX: require composite state

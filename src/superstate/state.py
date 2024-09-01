@@ -22,7 +22,7 @@ from superstate.exception import (
 from superstate.model.base import Action
 from superstate.model.data import DataModel
 from superstate.transition import Transition
-from superstate.types import Identifier
+from superstate.types import Identifier, Selection
 from superstate.utils import lookup_subclasses, tuplize
 
 if TYPE_CHECKING:
@@ -118,6 +118,7 @@ class State:
         # /,
         **kwargs: Any,
     ) -> None:
+        # TODO: should place the initial state here instead of onentry
         self.__parent: Optional['CompositeState'] = None
         self.name = name
         self.__type = kwargs.get('type', 'atomic')
@@ -126,7 +127,6 @@ class State:
         self.datamodel.parent = self
         if self.datamodel.binding == 'early':
             self.datamodel.populate()
-        self.transition: Optional['Transition'] = None
         self.validate()
 
     def __eq__(self, other: object) -> bool:
@@ -191,6 +191,9 @@ class State:
         elif isinstance(settings, str):
             obj = State(settings)
         if obj:
+            if hasattr(obj, 'transitions'):
+                for transition in obj.transitions:
+                    transition.source = obj
             return obj
         raise InvalidConfig('could not create state from provided settings')
 
@@ -295,17 +298,41 @@ class ConditionState(PseudoState):
 class HistoryState(PseudoState):
     """A pseudostate that remembers transition history of compound states."""
 
-    __history: str
+    __kind: str = cast(str, Selection('deep', 'shallow'))
+    __transitions: List['Transition']
 
     def __init__(self, name: str, **kwargs: Any) -> None:
-        self.__history = kwargs.get('history', 'shallow')
+        self.__kind = kwargs.get('type', 'shallow')
+        self.__transitions = kwargs.pop('transitions', [])
+        self.transition: Optional['Transition'] = None
+        if self.transitions:
+            self.transition = self.transitions[0]
         super().__init__(name, **kwargs)
 
     @property
-    def history(self) -> str:
+    def type(self) -> str:
         """Return previous substate."""
         # TODO: implement tail for shallow history
-        return self.__history
+        return self.__kind
+
+    @property
+    def transitions(self) -> Tuple['Transition', ...]:
+        """Return transitions of this state."""
+        return tuple(self.__transitions)
+
+    def validate(self) -> None:
+        """Validate state to ensure conformance with type requirements."""
+        # Transition must not contain 'cond' attributes.
+        for transition in self.transitions:
+            if transition.cond is not None:
+                raise InvalidConfig(
+                    'initial transition must not contain "cond" attribute'
+                )
+            # Transition must not contain 'event' attributes.
+            if transition.event != '':
+                raise InvalidConfig(
+                    'initial transition must not contain "event" attribute'
+                )
 
 
 class InitialState(PseudoState):
@@ -316,8 +343,6 @@ class InitialState(PseudoState):
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
         self.__transitions = kwargs.pop('transitions', [])
-        if self.transitions:
-            self.transition = self.transitions[0]
         super().__init__(name, **kwargs)
 
     @classmethod
@@ -326,7 +351,7 @@ class InitialState(PseudoState):
     ) -> Union['CompositeState', 'State']:
         """Create state from configuration."""
         obj = None
-        if isinstance(settings, State):
+        if isinstance(settings, InitialState):
             obj = settings
         elif isinstance(settings, dict):
             obj = settings.pop('factory', State)(
@@ -350,22 +375,27 @@ class InitialState(PseudoState):
         """Return transitions of this state."""
         return tuple(self.__transitions)
 
+    @property
+    def transition(self) -> 'Transition':
+        """Return transitions of this state."""
+        return self.__transitions[0]
+
     def validate(self) -> None:
         """Validate state to ensure conformance with type requirements."""
         if len(self.transitions) != 1:
             raise InvalidConfig('initial state must contain one transition')
         # Transition must specify non-empty target.
-        if self.transitions[0].target == '':
+        if self.transition.target == '':
             raise InvalidConfig(
                 'initial transition must specify non-empty "target" attribute'
             )
         # Transition must not contain 'cond' attributes.
-        if self.transitions[0].cond is not None:
+        if self.transition.cond is not None:
             raise InvalidConfig(
                 'initial transition must not contain "cond" attribute'
             )
         # Transition must not contain 'event' attributes.
-        if self.transitions[0].event != '':
+        if self.transition.event != '':
             raise InvalidConfig(
                 'initial transition must not contain "event" attribute'
             )

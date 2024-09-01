@@ -3,18 +3,19 @@
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
-from superstate.exception import InvalidConfig
+from superstate.exception import InvalidConfig, SuperstateException
 from superstate.model import Action, Conditional
 from superstate.types import Selection, Identifier
 from superstate.utils import tuplize
 
 if TYPE_CHECKING:
     from superstate.machine import StateChart
+    from superstate.state import State
     from superstate.types import ActionTypes
 
 log = logging.getLogger(__name__)
 
-TRANSITION_PATTERN = r'^(([a-zA-Z][a-zA-Z0-9:\.\-_]*(\.\*)?)|\*)?$'
+TRANSITION_PATTERN = r'^(([a-zA-Z][a-zA-Z0-9:\.\-_]*(\.\*)?)|(\.|\*))?$'
 
 
 class Transition:
@@ -30,11 +31,12 @@ class Transition:
 
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
 
+    __source: Optional['State'] = None
     event: str = cast(str, Identifier(TRANSITION_PATTERN))
     cond: Optional['ActionTypes']
     target: str = cast(str, Identifier(TRANSITION_PATTERN))
     type: str = cast(str, Selection('internal', 'external'))
-    actions: Optional['ActionTypes']
+    content: Optional['ActionTypes']
 
     def __init__(
         self,
@@ -48,31 +50,7 @@ class Transition:
         self.cond = kwargs.get('cond')  # XXX: should default to bool
         self.target = kwargs.get('target', '')
         self.type = kwargs.get('type', 'internal')
-        self.actions = kwargs.get('actions')
-
-    @classmethod
-    def create(cls, settings: Union['Transition', dict]) -> 'Transition':
-        """Create transition from configuration."""
-        if isinstance(settings, Transition):
-            return settings
-        if isinstance(settings, dict):
-            # print(settings['actions'] if 'actions' in settings else None)
-            return cls(
-                event=settings.get('event', ''),
-                cond=(
-                    tuple(map(Conditional.create, tuplize(settings['cond'])))
-                    if 'cond' in settings
-                    else []
-                ),
-                target=settings.get('target', ''),
-                type=settings.get('type', 'internal'),
-                actions=(
-                    tuple(map(Action.create, tuplize(settings['actions'])))
-                    if 'actions' in settings
-                    else []
-                ),
-            )
-        raise InvalidConfig('could not find a valid transition configuration')
+        self.content = kwargs.get('content')
 
     def __repr__(self) -> str:
         return repr(f"Transition(event={self.event}, target={self.target})")
@@ -93,18 +71,54 @@ class Transition:
             target = self.target
 
         results = None
-        if self.actions:
+        if self.content:
             results = []
             provider = ctx.datamodel.provider(ctx)
-            for expression in tuplize(self.actions):
+            for expression in tuplize(self.content):
                 results.append(provider.handle(expression, *args, **kwargs))
             log.info("executed action event for %r", self.event)
         ctx.change_state(target)
         log.info("no action event for %r", self.event)
         return results
 
+    @classmethod
+    def create(cls, settings: Union['Transition', dict]) -> 'Transition':
+        """Create transition from configuration."""
+        if isinstance(settings, Transition):
+            return settings
+        if isinstance(settings, dict):
+            # print(settings['content'] if 'content' in settings else None)
+            return cls(
+                event=settings.get('event', ''),
+                cond=(
+                    tuple(map(Conditional.create, tuplize(settings['cond'])))
+                    if 'cond' in settings
+                    else []
+                ),
+                target=settings.get('target', ''),
+                type=settings.get('type', 'internal'),
+                content=(
+                    tuple(map(Action.create, tuplize(settings['content'])))
+                    if 'content' in settings
+                    else []
+                ),
+            )
+        raise InvalidConfig('could not find a valid transition configuration')
+
+    @property
+    def source(self) -> Optional['State']:
+        """Get source state."""
+        return self.__source
+
+    @source.setter
+    def source(self, state: 'State') -> None:
+        if self.__source is None:
+            self.__source = state
+        else:
+            raise SuperstateException('cannot change source of transition')
+
     def callback(self) -> Callable:
-        """Provide callback from parent state when transition is called."""
+        """Provide callback from source state when transition is called."""
 
         def event(ctx: 'StateChart', *args: Any, **kwargs: Any) -> None:
             """Provide callback event."""
