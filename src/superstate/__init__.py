@@ -50,9 +50,8 @@ from superstate.model import (
 )
 from superstate.state import (
     AtomicState,
-    CompositeState,
     CompoundState,
-    ConditionState,
+    # ConditionState,
     FinalState,
     # HistoryState,
     State,
@@ -72,9 +71,8 @@ __all__ = (
     'StateChart',
     # states
     'AtomicState',
-    'CompositeState',
     'CompoundState',
-    'ConditionState',
+    # 'ConditionState',
     'FinalState',
     # 'HistoryState',
     'State',

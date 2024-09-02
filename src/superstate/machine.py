@@ -29,7 +29,7 @@ from superstate.model.data import DataModel
 from superstate.provider import PROVIDERS
 from superstate.state import (
     AtomicState,
-    CompositeState,
+    StateMixin,
     # CompoundState,
     ParallelState,
     State,
@@ -51,7 +51,7 @@ class MetaStateChart(type):
     __initial__: 'Initial'
     __binding__: str = cast(str, Selection('early', 'late'))
     __datamodel__: str
-    _root: 'CompositeState'
+    _root: 'StateMixin'
     datamodel: 'DataModel'
 
     def __new__(
@@ -106,8 +106,8 @@ class StateChart(metaclass=MetaStateChart):
     # __slots__ = [
     #     '__dict__', '__current_state', '__parent', '__root', 'initial'
     # ]
-    __root: 'CompositeState'
-    __parent: 'CompositeState'
+    __root: 'StateMixin'
+    __parent: 'StateMixin'
     __current_state: 'State'
 
     # # System Variables
@@ -201,12 +201,12 @@ class StateChart(metaclass=MetaStateChart):
         return self.__current_state
 
     @property
-    def root(self) -> 'CompositeState':
+    def root(self) -> 'StateMixin':
         """Return root state of statechart."""
         return self.__root
 
     @property
-    def parent(self) -> 'CompositeState':
+    def parent(self) -> 'StateMixin':
         """Return parent."""
         return self.current_state.parent or self.root
 
@@ -214,7 +214,7 @@ class StateChart(metaclass=MetaStateChart):
     def children(self) -> Tuple['State', ...]:
         """Return list of states."""
         return (
-            tuple(self.__current_state.states)
+            tuple(self.__current_state.states.values())
             if hasattr(self.__current_state, 'states')
             else ()
         )
@@ -233,11 +233,11 @@ class StateChart(metaclass=MetaStateChart):
     def active(self) -> Tuple['State', ...]:
         """Return active states."""
         states: List['State'] = []
-        parents = list(reversed(self.current_state))  # type: ignore
+        parents = list(reversed(self.current_state))
         for i, x in enumerate(parents):
             n = i + 1
             if not n >= len(parents) and isinstance(parents[n], ParallelState):
-                states += list((parents[n]).states)
+                states += list((parents[n]).states)  # type: ignore
             else:
                 states.append(x)
         return tuple(states)
@@ -283,7 +283,7 @@ class StateChart(metaclass=MetaStateChart):
                         self.current_state.run_on_exit(self)
                         self.__current_state = self.active[1]
                     elif (
-                        isinstance(self.current_state, CompositeState)
+                        isinstance(self.current_state, StateMixin)
                         and microstep in self.current_state.states.keys()
                     ):  # forward
                         state = self.current_state.states[microstep]
@@ -305,7 +305,7 @@ class StateChart(metaclass=MetaStateChart):
         macrostep = statepath.split('.')
 
         # general recursive search for single query
-        if len(macrostep) == 1 and isinstance(state, CompositeState):
+        if len(macrostep) == 1 and isinstance(state, StateMixin):
             for x in list(state):
                 if x == macrostep[0]:
                     return x
@@ -345,7 +345,7 @@ class StateChart(metaclass=MetaStateChart):
     ) -> None:
         """Add state to either parent or target state."""
         parent = self.get_state(statepath) if statepath else self.parent
-        if isinstance(parent, CompositeState):
+        if isinstance(parent, StateMixin):
             parent.add_state(state)
             log.info('added state %s', state.name)
         else:
