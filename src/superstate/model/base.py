@@ -23,13 +23,16 @@ class ExecutableContent:
             return settings
         if isinstance(settings, dict):
             for key, value in settings.items():
+                print(key, value)
                 for Subclass in lookup_subclasses(cls):
+                    print(Subclass.__name__.lower() == key.lower(), key)
                     if Subclass.__name__.lower() == key.lower():
                         return (
                             Subclass(value)  # type: ignore
                             if callable(value)
                             else Subclass(**value)
                         )
+            raise InvalidConfig('fuck')
         raise InvalidConfig('could not find a valid configuration for action')
 
     def callback(

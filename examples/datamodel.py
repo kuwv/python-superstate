@@ -82,7 +82,7 @@ class App(StateChart):
                     {
                         'event': 'turn_off',
                         'target': 'off',
-                        'actions': [
+                        'content': [
                             {'assign': {'location': 'foo', 'expr': '"baz"'}},
                             {
                                 'foreach': {
@@ -129,7 +129,7 @@ class App(StateChart):
                         'event': 'turn_on',
                         'cond': 'In("app")',
                         'target': 'on',
-                        'actions': [
+                        'content': [
                             # {'script': lambda: print('entered off state')},
                             {
                                 'assign': {

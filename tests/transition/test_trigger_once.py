@@ -15,7 +15,7 @@ class LoanRequest(StateChart):
                     {
                         'event': 'analyze',
                         'target': 'analyzing',
-                        'actions': ['input_data'],
+                        'content': ['input_data'],
                     }
                 ],
             },

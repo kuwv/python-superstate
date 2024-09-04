@@ -17,7 +17,7 @@ class Nested(StateChart):
                     {
                         'event': 'change',
                         'target': 'start.inter_one',
-                        'actions': lambda: print('transitioning to inter_one'),
+                        'content': lambda: print('transitioning to inter_one'),
                     }
                 ],
                 'states': [
@@ -27,7 +27,7 @@ class Nested(StateChart):
                             {
                                 'event': 'change',
                                 'target': 'start.inter_two',
-                                'actions': lambda: print(
+                                'content': lambda: print(
                                     'transitioning to inter_two'
                                 ),
                             }
@@ -45,7 +45,7 @@ class Nested(StateChart):
                                         'event': 'change',
                                         # XXX: this does not seem right
                                         'target': 'end',
-                                        'actions': lambda: print(
+                                        'content': lambda: print(
                                             'transitioning to end'
                                         ),
                                     },
@@ -56,7 +56,7 @@ class Nested(StateChart):
                             {
                                 'event': 'change',
                                 'target': 'start.inter_two.substate_one',
-                                'actions': lambda: print(
+                                'content': lambda: print(
                                     'transitioning to substate_one'
                                 ),
                             }

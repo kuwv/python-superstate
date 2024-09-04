@@ -67,11 +67,12 @@ if __name__ == '__main__':
     # print(machine.transitions)
 
     # print('state', machine.state)
-    assert machine.superstate.initial == 'stopped'
-    assert machine.state == 'started'
+    assert machine.initial == 'stopped'
+    assert machine.current_state == 'started'
 
     machine.trigger('stop')
     machine.trigger('fix')
-    assert machine.state == 'fixing'
+    assert machine.current_state == 'fixing'
+
     machine.trigger('check')
-    assert machine.state == 'checking'
+    assert machine.current_state == 'checking'

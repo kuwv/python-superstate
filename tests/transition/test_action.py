@@ -11,7 +11,7 @@ class CrazyGuy(StateChart):
                     {
                         'event': 'jump',
                         'target': 'falling',
-                        'actions': ['become_at_risk', 'accelerate'],
+                        'content': ['become_at_risk', 'accelerate'],
                     }
                 ],
             },
@@ -39,7 +39,7 @@ def test_it_runs_when_transition_occurs():
     assert guy.at_risk is True
 
 
-def test_it_supports_multiple_transition_actions():
+def test_it_supports_multiple_transition_content():
     guy = CrazyGuy()
     assert guy.at_risk is False
     assert guy.accelerating is False

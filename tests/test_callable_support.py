@@ -30,7 +30,7 @@ class JumperGuy(StateChart):
                             lambda jumper: jumper.append('jump:cond') is None
                         ),
                         'target': 'falling',
-                        'actions': [
+                        'content': [
                             lambda jumper: jumper.append('jump:action')
                         ],
                     }

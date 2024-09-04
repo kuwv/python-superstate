@@ -18,7 +18,7 @@ class StopLight(StateChart):
                     {
                         'event': 'turn_green',
                         'target': 'green',
-                        'actions': lambda: time.sleep(5),
+                        'content': lambda: time.sleep(5),
                     }
                 ],
                 'on_entry': lambda: print('Red light!'),
@@ -29,7 +29,7 @@ class StopLight(StateChart):
                     {
                         'event': 'turn_red',
                         'target': 'red',
-                        'actions': lambda: time.sleep(5),
+                        'content': lambda: time.sleep(5),
                     }
                 ],
                 'on_entry': lambda: print('Yellow light!'),
@@ -40,7 +40,7 @@ class StopLight(StateChart):
                     {
                         'event': 'turn_yellow',
                         'target': 'yellow',
-                        'actions': lambda: time.sleep(5),
+                        'content': lambda: time.sleep(5),
                     }
                 ],
                 'on_entry': lambda: print('Green light!'),

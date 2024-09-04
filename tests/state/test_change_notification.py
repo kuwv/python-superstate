@@ -17,7 +17,7 @@ class Door(StateChart):
                     Transition(
                         event='close',
                         target='closed',
-                        actions=[
+                        content=[
                             Script(
                                 lambda ctx: ctx.state_trigger(
                                     source='open', target='closed'
@@ -28,7 +28,7 @@ class Door(StateChart):
                     Transition(
                         event='crack',
                         target='broken',
-                        actions=[
+                        content=[
                             Script(
                                 lambda ctx: ctx.state_trigger(
                                     source='open', target='crack'
@@ -44,7 +44,7 @@ class Door(StateChart):
                     Transition(
                         event='open',
                         target='open',
-                        actions=[
+                        content=[
                             Script(
                                 lambda ctx: ctx.state_trigger(
                                     source='closed', target='open'
@@ -55,7 +55,7 @@ class Door(StateChart):
                     Transition(
                         event='crack',
                         target='broken',
-                        actions=[
+                        content=[
                             Script(
                                 lambda ctx: ctx.state_trigger(
                                     source='crack', target='broken'
@@ -74,7 +74,7 @@ class Door(StateChart):
         self.state_changes: List[Tuple[str, str]] = []
 
     def state_trigger(self, source: str, target: str) -> None:
-        """Record state changes using transition actions."""
+        """Record state changes using transition content."""
         self.state_changes.append((source, target))
 
 
