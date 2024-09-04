@@ -29,7 +29,7 @@ from superstate.model.data import DataModel
 from superstate.provider import PROVIDERS
 from superstate.state import (
     AtomicState,
-    StateMixin,
+    SubstateMixin,
     # CompoundState,
     ParallelState,
     State,
@@ -51,7 +51,7 @@ class MetaStateChart(type):
     __initial__: 'Initial'
     __binding__: str = cast(str, Selection('early', 'late'))
     __datamodel__: str
-    _root: 'StateMixin'
+    _root: 'SubstateMixin'
     datamodel: 'DataModel'
 
     def __new__(
@@ -106,8 +106,8 @@ class StateChart(metaclass=MetaStateChart):
     # __slots__ = [
     #     '__dict__', '__current_state', '__parent', '__root', 'initial'
     # ]
-    __root: 'StateMixin'
-    __parent: 'StateMixin'
+    __root: 'SubstateMixin'
+    __parent: 'SubstateMixin'
     __current_state: 'State'
 
     # # System Variables
@@ -201,12 +201,12 @@ class StateChart(metaclass=MetaStateChart):
         return self.__current_state
 
     @property
-    def root(self) -> 'StateMixin':
+    def root(self) -> 'SubstateMixin':
         """Return root state of statechart."""
         return self.__root
 
     @property
-    def parent(self) -> 'StateMixin':
+    def parent(self) -> 'SubstateMixin':
         """Return parent."""
         return self.current_state.parent or self.root
 
@@ -283,7 +283,7 @@ class StateChart(metaclass=MetaStateChart):
                         self.current_state.run_on_exit(self)
                         self.__current_state = self.active[1]
                     elif (
-                        isinstance(self.current_state, StateMixin)
+                        isinstance(self.current_state, SubstateMixin)
                         and microstep in self.current_state.states.keys()
                     ):  # forward
                         state = self.current_state.states[microstep]
@@ -305,7 +305,7 @@ class StateChart(metaclass=MetaStateChart):
         macrostep = statepath.split('.')
 
         # general recursive search for single query
-        if len(macrostep) == 1 and isinstance(state, StateMixin):
+        if len(macrostep) == 1 and isinstance(state, SubstateMixin):
             for x in list(state):
                 if x == macrostep[0]:
                     return x
@@ -345,7 +345,7 @@ class StateChart(metaclass=MetaStateChart):
     ) -> None:
         """Add state to either parent or target state."""
         parent = self.get_state(statepath) if statepath else self.parent
-        if isinstance(parent, StateMixin):
+        if isinstance(parent, SubstateMixin):
             parent.add_state(state)
             log.info('added state %s', state.name)
         else:

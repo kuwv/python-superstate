@@ -9,7 +9,7 @@ from superstate.state import ParallelState
 if TYPE_CHECKING:
     from superstate.state import (
         # AtomicState,
-        # StateMixin,
+        # SubstateMixin,
         # CompoundState,
         State,
     )

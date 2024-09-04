@@ -221,7 +221,7 @@ class State:
     ) -> None:
         # TODO: should place the initial state here instead of onentry
         self.__type = kwargs.get('type', 'atomic')
-        self.__parent: Optional['StateMixin'] = None
+        self.__parent: Optional['SubstateMixin'] = None
         self.name = name
         self.datamodel = kwargs.pop('datamodel', DataModel([]))
         self.datamodel.parent = self
@@ -247,7 +247,7 @@ class State:
         # simple breadth-first iteration
         if self.__stack:
             x = self.__stack.pop()
-            if isinstance(x, StateMixin):
+            if isinstance(x, SubstateMixin):
                 self.__stack = list(chain(x.states.values(), self.__stack))
             return x
         raise StopIteration
@@ -261,7 +261,7 @@ class State:
     @classmethod
     def create(
         cls, settings: Union['State', dict, str]
-    ) -> Union['StateMixin', 'State']:
+    ) -> Union['SubstateMixin', 'State']:
         """Create state from configuration."""
         obj = None
         if isinstance(settings, State):
@@ -326,12 +326,12 @@ class State:
         return self.__type
 
     @property
-    def parent(self) -> Optional['StateMixin']:
+    def parent(self) -> Optional['SubstateMixin']:
         """Get parent state."""
         return self.__parent
 
     @parent.setter
-    def parent(self, state: 'StateMixin') -> None:
+    def parent(self, state: 'SubstateMixin') -> None:
         if self.__parent is None:
             self.__parent = state
         else:
@@ -347,8 +347,8 @@ class State:
         """Validate the current state configuration."""
         log.info("completed validation for state %s", self.name)
 
-    # descendents
     # ancestors
+    # descendents
 
 
 class PseudoState(State):
@@ -401,6 +401,7 @@ class HistoryState(TransitionMixin, PseudoState):
                 raise InvalidConfig(
                     'initial transition must not contain "event" attribute'
                 )
+        super().validate()
 
 
 class InitialState(TransitionMixin, PseudoState):
@@ -414,7 +415,7 @@ class InitialState(TransitionMixin, PseudoState):
     @classmethod
     def create(
         cls, settings: Union['State', dict, str]
-    ) -> Union['StateMixin', 'State']:
+    ) -> Union['SubstateMixin', 'State']:
         """Create state from configuration."""
         obj = None
         if isinstance(settings, InitialState):
@@ -439,7 +440,7 @@ class InitialState(TransitionMixin, PseudoState):
     @property
     def transition(self) -> 'Transition':
         """Return transition of initial state."""
-        return self.__transitions[0]
+        return self.transitions[0]
 
     def validate(self) -> None:
         """Validate state to ensure conformance with type requirements."""
@@ -461,6 +462,7 @@ class InitialState(TransitionMixin, PseudoState):
                 'initial transition must not contain "event" attribute'
             )
         # Transition may contain executable content.
+        super().validate()
 
 
 class FinalState(ContentMixin, PseudoState):
@@ -472,8 +474,9 @@ class FinalState(ContentMixin, PseudoState):
         self.on_entry = kwargs.pop('on_entry')
         super().__init__(name, **kwargs)
 
-    # NOTE: SCXML Processor MUST generate the event done.state.id after
-    # completion of the <onentry> elements
+    # def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
+    #   NOTE: SCXML Processor MUST generate the event done.state.id after
+    #   completion of the <onentry> elements
 
     def run_on_exit(self, ctx: 'StateChart') -> Optional[Any]:
         raise InvalidTransition('final state cannot transition once entered')
@@ -484,9 +487,9 @@ class AtomicState(ContentMixin, TransitionMixin, State):
 
     def __init__(self, name: str, **kwargs: Any) -> None:
         """Initialize atomic state."""
-        self.transitions = kwargs.pop('transitions', [])
         self.on_entry = kwargs.pop('on_entry', None)
         self.on_exit = kwargs.pop('on_exit', None)
+        self.transitions = kwargs.pop('transitions', [])
         super().__init__(name, **kwargs)
 
     def run_on_entry(self, ctx: 'StateChart') -> Optional[Any]:
@@ -498,7 +501,7 @@ class AtomicState(ContentMixin, TransitionMixin, State):
         return super().run_on_entry(ctx)
 
 
-class StateMixin(State):
+class SubstateMixin(State):
     """Provide composite abstract to define nested state types."""
 
     __states: Dict[str, 'State'] = {}
@@ -539,7 +542,7 @@ class StateMixin(State):
     descendants = states
 
 
-# class StateMixin(State):
+# class SubstateMixin(State):
 #     """Provide composite abstract to define nested state types."""
 #
 #     __states: List['State'] = []
@@ -581,7 +584,7 @@ class StateMixin(State):
 #     descendants = states
 
 
-class CompoundState(AtomicState, StateMixin):
+class CompoundState(SubstateMixin, AtomicState):
     """Provide nested state capabilitiy."""
 
     initial: 'Initial'
@@ -624,9 +627,10 @@ class CompoundState(AtomicState, StateMixin):
         """Validate state to ensure conformance with type requirements."""
         if len(self.states) < 1:
             raise InvalidConfig('There must be one or more states')
+        super().validate()
 
 
-class ParallelState(AtomicState, StateMixin):
+class ParallelState(SubstateMixin, AtomicState):
     """Provide parallel state capability for statechart."""
 
     def __init__(self, name: str, **kwargs: Any) -> None:
@@ -648,17 +652,15 @@ class ParallelState(AtomicState, StateMixin):
         results.append(super().run_on_exit(ctx))
         return results
 
-    # def validate(self) -> None:
-    #     # TODO: empty statemachine should default to null event
-    #     if self.type == 'compound':
-    #         if len(self.__states) < 2:
-    #             raise InvalidConfig('There must be at least two states')
-    #         if not self.initial:
-    #             raise InvalidConfig('There must exist an initial state')
-    #     if self.initial and self.type == 'parallel':
-    #         raise InvalidConfig(
-    #             'parallel state should not have an initial state'
-    #         )
-    #     if self.type == 'final' and self.__on_exit:
-    #         log.warning('final state will never run "on_exit" action')
-    #     super.validate()
+    def validate(self) -> None:
+        # TODO: empty statemachine should default to null event
+        if self.type == 'compound':
+            if len(self.__states) < 2:
+                raise InvalidConfig('There must be at least two states')
+            if not self.initial:
+                raise InvalidConfig('There must exist an initial state')
+        if self.initial and self.type == 'parallel':
+            raise InvalidConfig(
+                'parallel state should not have an initial state'
+            )
+        super().validate()
