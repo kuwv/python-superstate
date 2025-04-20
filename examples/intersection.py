@@ -10,6 +10,7 @@ class StopLight(State):
     """Provide representation of a stoplight."""
 
     def __init__(self, name: str, initial: Union[Callable, str]) -> None:
+        """Initialize a stoplight."""
         super().__init__(
             name=name,
             initial=initial,
