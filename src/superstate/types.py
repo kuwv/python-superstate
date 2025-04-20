@@ -1,5 +1,7 @@
 """Provide common types for statechart components."""
 
+from __future__ import annotations
+
 import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
 from collections.abc import Callable
@@ -19,10 +21,10 @@ from superstate.exception import InvalidConfig
 if TYPE_CHECKING:
     from superstate.model import Action
 
-ExpressionType = Union[Callable, str]
-ExpressionTypes = Sequence['ExpressionType']
-ActionTypes = Sequence['Action']
-Initial = Union[Callable, str]
+    ActionTypes = Sequence[Action]
+    ExpressionType = Union[Callable, str]
+    ExpressionTypes = Sequence[ExpressionType]
+    Initial = Union[Callable, str]
 
 T = TypeVar('T')
 
@@ -78,7 +80,7 @@ class Identifier(Validator):
 class Expression(Validator):
     """Validate valueession."""
 
-    def validate(self, value: 'ExpressionType') -> None:
+    def validate(self, value: ExpressionType) -> None:
         """Validate valueession."""
         if isinstance(value, str):
             if '\n' in value:
