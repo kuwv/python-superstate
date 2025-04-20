@@ -1,5 +1,7 @@
 """Provide common types for statechart components."""
 
+from __future__ import annotations
+
 import json
 from collections import ChainMap
 from dataclasses import InitVar, dataclass
@@ -45,7 +47,7 @@ class Data:
             )
 
     @classmethod
-    def create(cls, settings: Union['Data', dict]) -> 'Data':
+    def create(cls, settings: Union[Data, dict]) -> Data:
         """Return data object for data mapper."""
         if isinstance(settings, Data):
             return settings
@@ -85,17 +87,17 @@ class Data:
 class DataModel(ChainMap):
     """Instantiate state types from class metadata."""
 
-    data: List['Data']
+    data: List[Data]
     binding: ClassVar[str] = 'early'
-    provider: ClassVar[Type['Provider']] = Default
+    provider: ClassVar[Type[Provider]] = Default
 
     def __post_init__(self) -> None:
         """Validate the data object."""
-        self.__parent: Optional['State'] = None
-        # self.__provider: Optional['Provider'] = None
+        self.__parent: Optional[State] = None
+        # self.__provider: Optional[Provider] = None
 
     @classmethod
-    def create(cls, settings: Union['DataModel', dict]) -> 'DataModel':
+    def create(cls, settings: Union[DataModel, dict]) -> DataModel:
         """Return data model for data mapper."""
         if isinstance(settings, DataModel):
             return settings
@@ -108,12 +110,12 @@ class DataModel(ChainMap):
         raise InvalidConfig('could not find a valid data model configuration')
 
     @property
-    def parent(self) -> Optional['State']:
+    def parent(self) -> Optional[State]:
         """Get parent state."""
         return self.__parent
 
     @parent.setter
-    def parent(self, state: 'State') -> None:
+    def parent(self, state: State) -> None:
         if self.__parent is None:
             self.__parent = state
             # self.maps.insert(0, self.parent.datamodel)

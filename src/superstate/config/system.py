@@ -1,5 +1,7 @@
 """Provide system info for statechart components."""
 
+from __future__ import annotations
+
 from typing_extensions import NotRequired, TypedDict
 
 
@@ -37,7 +39,7 @@ class TimeInfo(TypedDict):
 class SystemInfo(TypedDict):
     """Provide system info."""
 
-    host: NotRequired['HostInfo']
-    time: NotRequired['TimeInfo']
-    runtime: NotRequired['RuntimeInfo']
-    platform: NotRequired['PlatformInfo']
+    host: NotRequired[HostInfo]
+    time: NotRequired[TimeInfo]
+    runtime: NotRequired[RuntimeInfo]
+    platform: NotRequired[PlatformInfo]

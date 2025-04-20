@@ -1,5 +1,7 @@
 """Provide common types for statechart components."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
@@ -16,8 +18,8 @@ class ExecutableContent:
 
     @classmethod
     def create(
-        cls, settings: Union['ExecutableContent', Callable, Dict[str, Any]]
-    ) -> 'ExecutableContent':
+        cls, settings: Union[ExecutableContent, Callable, Dict[str, Any]]
+    ) -> ExecutableContent:
         """Create expression from configuration."""
         if isinstance(settings, ExecutableContent):
             return settings
@@ -36,7 +38,7 @@ class ExecutableContent:
         raise InvalidConfig('could not find a valid configuration for action')
 
     def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
+        self, provider: Provider, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback for language provider."""
 
@@ -48,8 +50,8 @@ class Action(ExecutableContent):
 
     @classmethod
     def create(
-        cls, settings: Union['ExecutableContent', Callable, Dict[str, Any]]
-    ) -> 'ExecutableContent':
+        cls, settings: Union[ExecutableContent, Callable, Dict[str, Any]]
+    ) -> ExecutableContent:
         """Create action from configuration."""
         if isinstance(settings, str) or callable(settings):
             for Subclass in lookup_subclasses(cls):
@@ -66,15 +68,15 @@ class Conditional(ExecutableContent):
 
     @classmethod
     def create(
-        cls, settings: Union['ExecutableContent', Callable, Dict[str, Any]]
-    ) -> 'ExecutableContent':
+        cls, settings: Union[ExecutableContent, Callable, Dict[str, Any]]
+    ) -> ExecutableContent:
         """Create state from configuration."""
         if isinstance(settings, (bool, str)) or callable(settings):
             return cls(settings)  # type: ignore
         return super().create(settings)
 
     def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
+        self, provider: Provider, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback for language provider."""
         return provider.eval(self.cond, *args, **kwargs)

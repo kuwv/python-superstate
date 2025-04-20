@@ -1,5 +1,7 @@
 """Provide common types for statechart components."""
 
+from __future__ import annotations
+
 import logging
 import logging.config
 from dataclasses import InitVar, asdict, dataclass
@@ -33,9 +35,7 @@ class Assign(Action):
     location: str
     expr: Optional[Expression] = None  # expression
 
-    def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
-    ) -> None:
+    def callback(self, provider: Provider, *args: Any, **kwargs: Any) -> None:
         """Provide callback from datamodel provider."""
         kwargs['__mode__'] = 'single'
         result = provider.exec(self.expr, *args, **kwargs)
@@ -65,9 +65,7 @@ class ForEach(Action):
     def __post_init__(self, content: List[str]) -> None:
         self.__content = [Action.create(x) for x in content]  # type: ignore
 
-    def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
-    ) -> None:
+    def callback(self, provider: Provider, *args: Any, **kwargs: Any) -> None:
         """Provide callback from datamodel provider."""
         array = provider.ctx.current_state.datamodel[self.array]
         if array:
@@ -95,9 +93,7 @@ class Log(Action):
     # def __post_init__(self) -> None:
     #     self.__log = logging.getLogger(self.label or provider.ctx.__name__)
 
-    def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
-    ) -> None:
+    def callback(self, provider: Provider, *args: Any, **kwargs: Any) -> None:
         """Provide callback from datamodel provider."""
         kwargs['__mode__'] = 'single'
         logger = logging.getLogger(self.label)
@@ -110,11 +106,9 @@ class Log(Action):
 class Raise(Action):
     """Data item providing state data."""
 
-    event: 'Event'
+    event: Event
 
-    def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
-    ) -> None:
+    def callback(self, provider: Provider, *args: Any, **kwargs: Any) -> None:
         """Provide callback from datamodel provider."""
         kwargs['__mode__'] = 'single'
 
@@ -128,7 +122,7 @@ class Script(Action):
     src: Union[Callable, str]
 
     def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
+        self, provider: Provider, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
         # need ability to download src URI
@@ -140,13 +134,13 @@ class Script(Action):
 class If(Conditional):
     """Data item providing state data."""
 
-    content: Sequence['ExecutableContent']
+    content: Sequence[ExecutableContent]
 
     def __post_init__(self) -> None:
         self.content = [Action.create(x) for x in self.content]
 
     def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
+        self, provider: Provider, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Provide callback from datamodel provider."""
         if provider.eval(self.cond, *args, **kwargs):
@@ -170,9 +164,7 @@ class Else(Conditional):
         self.cond = True
         self.content = [Action.create(x) for x in self.content]  # type: ignore
 
-    def callback(
-        self, provider: 'Provider', *args: Any, **kwargs: Any
-    ) -> None:
+    def callback(self, provider: Provider, *args: Any, **kwargs: Any) -> None:
         """Provide callback from datamodel provider."""
         for action in self.content:
             provider.handle(action, *args, **kwargs)

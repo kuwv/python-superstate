@@ -1,5 +1,7 @@
 """Provide parent core statechart capability."""
 
+from __future__ import annotations
+
 import logging
 import logging.config
 import os
@@ -48,11 +50,11 @@ class MetaStateChart(type):
     """Instantiate statecharts from class metadata."""
 
     __name__: str
-    __initial__: 'Initial'
+    __initial__: Initial
     __binding__: str = cast(str, Selection('early', 'late'))
     __datamodel__: str
-    _root: 'SubstateMixin'
-    datamodel: 'DataModel'
+    _root: SubstateMixin
+    datamodel: DataModel
 
     def __new__(
         mcs,
@@ -106,9 +108,9 @@ class StateChart(metaclass=MetaStateChart):
     # __slots__ = [
     #     '__dict__', '__current_state', '__parent', '__root', 'initial'
     # ]
-    __root: 'SubstateMixin'
-    __parent: 'SubstateMixin'
-    __current_state: 'State'
+    __root: SubstateMixin
+    __parent: SubstateMixin
+    __current_state: State
 
     # # System Variables
     # _name: str
@@ -195,23 +197,23 @@ class StateChart(metaclass=MetaStateChart):
         return self.__initial__
 
     @property
-    def current_state(self) -> 'State':
+    def current_state(self) -> State:
         """Return the current state."""
         # TODO: rename to head or position potentially
         return self.__current_state
 
     @property
-    def root(self) -> 'SubstateMixin':
+    def root(self) -> SubstateMixin:
         """Return root state of statechart."""
         return self.__root
 
     @property
-    def parent(self) -> 'SubstateMixin':
+    def parent(self) -> SubstateMixin:
         """Return parent."""
         return self.current_state.parent or self.root
 
     @property
-    def children(self) -> Tuple['State', ...]:
+    def children(self) -> Tuple[State, ...]:
         """Return list of states."""
         return (
             tuple(self.__current_state.states.values())
@@ -220,19 +222,19 @@ class StateChart(metaclass=MetaStateChart):
         )
 
     @property
-    def states(self) -> Tuple['State', ...]:
+    def states(self) -> Tuple[State, ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
     @property
-    def siblings(self) -> Tuple['State', ...]:
+    def siblings(self) -> Tuple[State, ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
     @property
-    def active(self) -> Tuple['State', ...]:
+    def active(self) -> Tuple[State, ...]:
         """Return active states."""
-        states: List['State'] = []
+        states: List[State] = []
         parents = list(reversed(self.current_state))
         for i, x in enumerate(parents):
             n = i + 1
@@ -299,9 +301,9 @@ class StateChart(metaclass=MetaStateChart):
         #     print('state transition not complete')
         log.info('changed state to %s', statepath)
 
-    def get_state(self, statepath: str) -> 'State':
+    def get_state(self, statepath: str) -> State:
         """Get state."""
-        state: 'State' = self.root
+        state: State = self.root
         macrostep = statepath.split('.')
 
         # general recursive search for single query
@@ -341,7 +343,7 @@ class StateChart(metaclass=MetaStateChart):
         raise InvalidState(f"state could not be found: {statepath}")
 
     def add_state(
-        self, state: 'State', statepath: Optional[str] = None
+        self, state: State, statepath: Optional[str] = None
     ) -> None:
         """Add state to either parent or target state."""
         parent = self.get_state(statepath) if statepath else self.parent
@@ -354,7 +356,7 @@ class StateChart(metaclass=MetaStateChart):
             )
 
     @property
-    def transitions(self) -> Tuple['Transition', ...]:
+    def transitions(self) -> Tuple[Transition, ...]:
         """Return list of current transitions."""
         return (
             tuple(self.current_state.transitions)
@@ -363,7 +365,7 @@ class StateChart(metaclass=MetaStateChart):
         )
 
     def add_transition(
-        self, transition: 'Transition', statepath: Optional[str] = None
+        self, transition: Transition, statepath: Optional[str] = None
     ) -> None:
         """Add transition to either parent or target state."""
         target = self.get_state(statepath) if statepath else self.parent
@@ -374,7 +376,7 @@ class StateChart(metaclass=MetaStateChart):
             raise InvalidState('cannot add transition to %s', target)
 
     @staticmethod
-    def _lookup_transitions(event: str, state: 'State') -> List["Transition"]:
+    def _lookup_transitions(event: str, state: State) -> List[Transition]:
         return (
             state.get_transition(event)
             if hasattr(state, 'get_transition')
@@ -383,13 +385,13 @@ class StateChart(metaclass=MetaStateChart):
 
     def process_transitions(
         self, event: str, /, *args: Any, **kwargs: Any
-    ) -> 'Transition':
+    ) -> Transition:
         """Get transition event from active states."""
         # TODO: must use datamodel to process transitions
         # child => parent => grandparent
-        guarded: List['Transition'] = []
+        guarded: List[Transition] = []
         for current in self.active:
-            transitions: List['Transition'] = []
+            transitions: List[Transition] = []
 
             # search parallel states for transitions
             if isinstance(current, ParallelState):

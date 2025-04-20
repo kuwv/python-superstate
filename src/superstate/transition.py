@@ -1,5 +1,7 @@
 """Provide superstate transition capabilities."""
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
@@ -31,7 +33,7 @@ class Transition:
 
     # __slots__ = ['event', 'target', 'action', 'cond', 'type']
 
-    __source: Optional['State'] = None
+    __source: Optional[State] = None
     event: str = cast(str, Identifier(TRANSITION_PATTERN))
     cond: Optional['ActionTypes']
     target: str = cast(str, Identifier(TRANSITION_PATTERN))
@@ -56,7 +58,7 @@ class Transition:
         return repr(f"Transition(event={self.event}, target={self.target})")
 
     def __call__(
-        self, ctx: 'StateChart', *args: Any, **kwargs: Any
+        self, ctx: StateChart, *args: Any, **kwargs: Any
     ) -> Optional[Any]:
         """Run transition process."""
         # TODO: move change_state to process_transitions
@@ -82,7 +84,7 @@ class Transition:
         return results
 
     @classmethod
-    def create(cls, settings: Union['Transition', dict]) -> 'Transition':
+    def create(cls, settings: Union[Transition, dict]) -> Transition:
         """Create transition from configuration."""
         if isinstance(settings, Transition):
             return settings
@@ -106,12 +108,12 @@ class Transition:
         raise InvalidConfig('could not find a valid transition configuration')
 
     @property
-    def source(self) -> Optional['State']:
+    def source(self) -> Optional[State]:
         """Get source state."""
         return self.__source
 
     @source.setter
-    def source(self, state: 'State') -> None:
+    def source(self, state: State) -> None:
         if self.__source is None:
             self.__source = state
         else:
@@ -120,7 +122,7 @@ class Transition:
     def callback(self) -> Callable:
         """Provide callback from source state when transition is called."""
 
-        def event(ctx: 'StateChart', *args: Any, **kwargs: Any) -> None:
+        def event(ctx: StateChart, *args: Any, **kwargs: Any) -> None:
             """Provide callback event."""
             ctx.process_transitions(self.event, *args, **kwargs)
 
@@ -128,7 +130,7 @@ class Transition:
         event.__doc__ = f"Transition event: '{self.event}'"
         return event
 
-    def evaluate(self, ctx: 'StateChart', *args: Any, **kwargs: Any) -> bool:
+    def evaluate(self, ctx: StateChart, *args: Any, **kwargs: Any) -> bool:
         """Evaluate conditionss of transition."""
         result = True
         if self.cond:
