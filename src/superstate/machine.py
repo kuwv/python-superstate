@@ -11,6 +11,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
+    Iterator,
     List,
     Optional,
     # Sequence,
@@ -31,10 +32,10 @@ from superstate.model.data import DataModel
 from superstate.provider import PROVIDERS
 from superstate.state import (
     AtomicState,
-    SubstateMixin,
     # CompoundState,
     ParallelState,
     State,
+    SubstateMixin,
 )
 from superstate.types import Selection
 
@@ -133,7 +134,8 @@ class StateChart(metaclass=MetaStateChart):
         log.info('initializing statechart')
 
         self._sessionid = UUID(
-            bytes=os.urandom(16), version=4  # pylint: disable=no-member
+            bytes=os.urandom(16),
+            version=4,  # pylint: disable=no-member
         )
 
         self.datamodel.populate()
@@ -170,18 +172,9 @@ class StateChart(metaclass=MetaStateChart):
         # do not attempt to resolve missing dunders
         if name.startswith('__'):
             raise AttributeError
-
         # handle state check for active states
         if name.startswith('is_'):
             return name[3:] in self.active
-
-        # handle automatic transitions
-        if name == '_auto_':
-
-            def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
-                return self.trigger('', *args, **kwargs)
-
-            return wrapper
         raise AttributeError(f"cannot find attribute: {name}")
 
     @property
@@ -201,6 +194,18 @@ class StateChart(metaclass=MetaStateChart):
         """Return the current state."""
         # TODO: rename to head or position potentially
         return self.__current_state
+
+    @current_state.setter
+    def current_state(self, state: State) -> None:
+        """Set the current state."""
+        if hasattr(self.current_state, 'states'):
+            if state in list(self.current_state.states.values()):
+                self.__current_state = state
+                return
+        if len(self.active) > 1 and self.active[1] == state:
+            self.__current_state = state
+        else:
+            raise InvalidTransition('cannot transition from final state')
 
     @property
     def root(self) -> SubstateMixin:
@@ -342,9 +347,7 @@ class StateChart(metaclass=MetaStateChart):
                 break
         raise InvalidState(f"state could not be found: {statepath}")
 
-    def add_state(
-        self, state: State, statepath: Optional[str] = None
-    ) -> None:
+    def add_state(self, state: State, statepath: Optional[str] = None) -> None:
         """Add state to either parent or target state."""
         parent = self.get_state(statepath) if statepath else self.parent
         if isinstance(parent, SubstateMixin):
@@ -356,13 +359,13 @@ class StateChart(metaclass=MetaStateChart):
             )
 
     @property
-    def transitions(self) -> Tuple[Transition, ...]:
+    def transitions(self) -> Iterator[Transition]:
         """Return list of current transitions."""
-        return (
-            tuple(self.current_state.transitions)
-            if hasattr(self.current_state, 'transitions')
-            else ()
-        )
+        for state in self.active:
+            if hasattr(state, 'transitions'):
+                yield from state.transitions
+            else:
+                continue
 
     def add_transition(
         self, transition: Transition, statepath: Optional[str] = None
@@ -375,57 +378,28 @@ class StateChart(metaclass=MetaStateChart):
         else:
             raise InvalidState('cannot add transition to %s', target)
 
-    @staticmethod
-    def _lookup_transitions(event: str, state: State) -> List[Transition]:
-        return (
-            state.get_transition(event)
-            if hasattr(state, 'get_transition')
-            else []
-        )
+    def get_transitions(self, event: str) -> tuple[Transition, ...]:
+        """Get each transition maching event."""
+        return tuple(filter(lambda t: t.event == event, self.transitions))
 
-    def process_transitions(
-        self, event: str, /, *args: Any, **kwargs: Any
-    ) -> Transition:
-        """Get transition event from active states."""
-        # TODO: must use datamodel to process transitions
-        # child => parent => grandparent
-        guarded: List[Transition] = []
-        for current in self.active:
-            transitions: List[Transition] = []
-
-            # search parallel states for transitions
-            if isinstance(current, ParallelState):
-                for state in current.states.values():
-                    transitions += self._lookup_transitions(event, state)
-            else:
-                transitions = self._lookup_transitions(event, current)
-
-            # evaluate conditions
-            allowed = [
-                t for t in transitions if t.evaluate(self, *args, **kwargs)
-            ]
-            if allowed:
-                # if len(allowed) > 1:
-                #     raise InvalidConfig(
-                #         'Conflicting transitions were allowed for event',
-                #         event
-                #     )
-                return allowed[0]
-            guarded += transitions
-        if len(guarded) != 0:
-            raise ConditionNotSatisfied('no transition possible from state')
-        raise InvalidTransition(f"transition could not be found: {event}")
-
-    def trigger(
-        self, event: str, /, *args: Any, **kwargs: Any
-    ) -> Optional[Any]:
+    def trigger(self, event: str, /, *args: Any, **kwargs: Any) -> None:
         """Transition from event to target state."""
-        # NOTE: 'on' should register an event with an event loop for callback
-        # trigger
-        # XXX: currently does not allow contional transient states
-        transition = self.process_transitions(event, *args, **kwargs)
-        if transition:
-            log.info('transitioning to %r', event)
-            result = transition(self, *args, **kwargs)
-            return result
-        raise InvalidTransition('transition %r not found', event)
+        # TODO: need to consider superstate transitions.
+        if self.current_state.type == 'final':
+            raise InvalidTransition('cannot transition from final state')
+
+        transitions = self.get_transitions(event)
+        if not transitions:
+            raise InvalidTransition('no transitions match event')
+        allowed = [t for t in transitions if t.evaluate(self, *args, **kwargs)]
+        if not allowed:
+            raise ConditionNotSatisfied(
+                'Condition is not satisfied for this transition'
+            )
+        if len(allowed) > 1:
+            raise InvalidTransition(
+                'More than one transition was allowed for this event'
+            )
+        log.info('processed guard for %s', allowed[0].event)
+        allowed[0].execute(self, *args, **kwargs)
+        log.info('processed transition event %s', allowed[0].event)

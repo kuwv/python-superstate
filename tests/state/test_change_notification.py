@@ -8,11 +8,12 @@ from superstate import StateChart, Script, State, Transition
 class Door(StateChart):
     """Represent a door."""
 
-    state = {
-        'initial': 'closed',
-        'states': [
+    state = State(
+        name='door',
+        initial='closed',
+        states=[
             State(
-                'open',
+                name='open',
                 transitions=[
                     Transition(
                         event='close',
@@ -39,7 +40,7 @@ class Door(StateChart):
                 ],
             ),
             State(
-                'closed',
+                name='closed',
                 transitions=[
                     Transition(
                         event='open',
@@ -67,7 +68,7 @@ class Door(StateChart):
             ),
             State('broken'),
         ],
-    }
+    )
 
     def __init__(self) -> None:
         super().__init__()

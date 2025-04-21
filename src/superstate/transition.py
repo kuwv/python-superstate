@@ -31,7 +31,7 @@ class Transition:
     name. In all cases, the token matching is case sensitive.]
     """
 
-    # __slots__ = ['event', 'target', 'action', 'cond', 'type']
+    # __slots__ = ['event', 'target', 'content', 'cond', 'type']
 
     __source: Optional[State] = None
     event: str = cast(str, Identifier(TRANSITION_PATTERN))
@@ -56,32 +56,6 @@ class Transition:
 
     def __repr__(self) -> str:
         return repr(f"Transition(event={self.event}, target={self.target})")
-
-    def __call__(
-        self, ctx: StateChart, *args: Any, **kwargs: Any
-    ) -> Optional[Any]:
-        """Run transition process."""
-        # TODO: move change_state to process_transitions
-        if 'statepath' in kwargs:
-            superstate_path = kwargs['statepath'].split('.')[:-1]
-            target = (
-                '.'.join(superstate_path + [self.target])
-                if superstate_path != []
-                else self.target
-            )
-        else:
-            target = self.target
-
-        results = None
-        if self.content:
-            results = []
-            provider = ctx.datamodel.provider(ctx)
-            for expression in tuplize(self.content):
-                results.append(provider.handle(expression, *args, **kwargs))
-            log.info("executed action event for %r", self.event)
-        ctx.change_state(target)
-        log.info("no action event for %r", self.event)
-        return results
 
     @classmethod
     def create(cls, settings: Union[Transition, dict]) -> Transition:
@@ -119,16 +93,47 @@ class Transition:
         else:
             raise SuperstateException('cannot change source of transition')
 
-    def callback(self) -> Callable:
-        """Provide callback from source state when transition is called."""
-
-        def event(ctx: StateChart, *args: Any, **kwargs: Any) -> None:
-            """Provide callback event."""
-            ctx.process_transitions(self.event, *args, **kwargs)
-
-        event.__name__ = self.event
-        event.__doc__ = f"Transition event: '{self.event}'"
-        return event
+    def execute(
+        self, ctx: StateChart, *args: Any, **kwargs: Any
+    ) -> Optional[List[Any]]:
+        """Transition the state of the statechart."""
+        log.info("executing transition contents for event %r", self.event)
+        results: Optional[List[Any]] = None
+        if self.content:
+            results = []
+            provider = ctx.datamodel.provider(ctx)
+            for expression in tuplize(self.content):
+                results.append(provider.handle(expression, *args, **kwargs))
+        log.info("completed transition contents for event %r", self.event)
+        relpath = ctx.get_relpath(self.target)
+        if relpath == '.':  # handle self transition
+            ctx.current_state.run_on_exit(ctx)
+            ctx.current_state.run_on_entry(ctx)
+        else:
+            macrostep = relpath.split('.')[2 if relpath.endswith('.') else 1 :]
+            while macrostep[0] == '':  # reverse
+                ctx.current_state.run_on_exit(ctx)
+                ctx.current_state = ctx.active[1]
+                macrostep.pop(0)
+            for microstep in macrostep:  # forward
+                try:
+                    if (
+                        # isinstance(ctx.current_state, State)
+                        hasattr(ctx.current_state, 'states')
+                        and microstep in ctx.current_state.states
+                    ):
+                        state = ctx.get_state(microstep)
+                        ctx.current_state = state
+                        state.run_on_entry(ctx)
+                    else:
+                        raise InvalidState(
+                            f"statepath not found: {self.target}"
+                        )
+                except SuperstateException as err:
+                    log.error(err)
+                    raise KeyError('superstate is undefined') from err
+        log.info('changed state to %s', self.target)
+        return results
 
     def evaluate(self, ctx: StateChart, *args: Any, **kwargs: Any) -> bool:
         """Evaluate conditionss of transition."""
