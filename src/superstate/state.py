@@ -72,21 +72,6 @@ class TransitionMixin:
 
     __transitions: List[Transition]
 
-    def __register_transition_callback(self, transition: Transition) -> None:
-        # XXX: currently mapping to class instead of instance
-        setattr(
-            self,
-            transition.event if transition.event != '' else '_auto_',
-            # pylint: disable-next=unnecessary-dunder-call
-            transition.callback().__get__(self, self.__class__),
-        )
-
-    def _process_transient_state(self, ctx: StateChart) -> None:
-        for transition in self.transitions:
-            if transition.event == '':
-                ctx._auto_()  # pylint: disable=protected-access
-                break
-
     @property
     def transitions(self) -> Tuple[Transition, ...]:
         """Return transitions of this state."""
@@ -96,13 +81,10 @@ class TransitionMixin:
     def transitions(self, transitions: List[Transition]) -> None:
         """Initialize atomic state."""
         self.__transitions = transitions
-        for transition in self.transitions:
-            self.__register_transition_callback(transition)
 
     def add_transition(self, transition: Transition) -> None:
         """Add transition to this state."""
         self.__transitions.append(transition)
-        self.__register_transition_callback(transition)
 
     def get_transition(self, event: str) -> Tuple[Transition, ...]:
         """Get each transition maching event."""
@@ -184,7 +166,7 @@ class State:
     name: str = cast(str, Identifier())
     # history: Optional['HistoryState']
     # final: Optional[FinalState]
-    states: Dict[str, State]
+    # states: Dict[str, State]
     # transitions: Tuple[Transition, ...]
     # onentry: Tuple[ActionTypes, ...]
     # onexit: Tuple[ActionTypes, ...]
@@ -493,8 +475,14 @@ class AtomicState(ContentMixin, TransitionMixin, State):
             self.datamodel, 'maps'
         ):
             self.datamodel.populate()
-        self._process_transient_state(ctx)
-        return super().run_on_entry(ctx)
+        log.info("executing 'on_entry' state change actions for %s", self.name)
+        results = super().run_on_entry(ctx)
+        # process transient states
+        for transition in self.transitions:
+            if transition.event == '':
+                ctx.trigger(transition.event)
+                break
+        return results
 
 
 class SubstateMixin(State):

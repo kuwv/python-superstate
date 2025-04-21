@@ -7,13 +7,13 @@ import logging.config
 import os
 from copy import deepcopy
 from itertools import zip_longest
-from typing import (
+from typing import (  # Sequence,
     TYPE_CHECKING,
     Any,
     Dict,
+    Iterator,
     List,
     Optional,
-    # Sequence,
     Tuple,
     cast,
 )
@@ -29,12 +29,11 @@ from superstate.exception import (
 )
 from superstate.model.data import DataModel
 from superstate.provider import PROVIDERS
-from superstate.state import (
+from superstate.state import (  # CompoundState,
     AtomicState,
-    SubstateMixin,
-    # CompoundState,
     ParallelState,
     State,
+    SubstateMixin,
 )
 from superstate.types import Selection
 
@@ -51,7 +50,7 @@ class MetaStateChart(type):
 
     __name__: str
     __initial__: Initial
-    __binding__: str = cast(str, Selection('early', 'late'))
+    __binding__: str = cast(str, Selection("early", "late"))
     __datamodel__: str
     _root: SubstateMixin
     datamodel: DataModel
@@ -61,24 +60,24 @@ class MetaStateChart(type):
         name: str,
         bases: Tuple[type, ...],
         attrs: Dict[str, Any],
-    ) -> 'MetaStateChart':
-        if '__name__' not in attrs:
+    ) -> "MetaStateChart":
+        if "__name__" not in attrs:
             name = name.lower()
-            attrs['__name__'] = name
+            attrs["__name__"] = name
         else:
-            name = attrs.get('__name__', name.lower())
+            name = attrs.get("__name__", name.lower())
 
-        initial = attrs.get('__initial__', None)
-        root = State.create(attrs.pop('state')) if 'state' in attrs else None
+        initial = attrs.get("__initial__", None)
+        root = State.create(attrs.pop("state")) if "state" in attrs else None
 
         # setup datamodel
-        binding = attrs.get('__binding__', DEFAULT_BINDING)
+        binding = attrs.get("__binding__", DEFAULT_BINDING)
         if binding:
             DataModel.binding = binding
-        provider = attrs.get('__datamodel__', DEFAULT_PROVIDER)
+        provider = attrs.get("__datamodel__", DEFAULT_PROVIDER)
         if provider != DEFAULT_PROVIDER:
             DataModel.provider = PROVIDERS[provider]
-        datamodel = DataModel.create(attrs.pop('datamodel', {'data': []}))
+        datamodel = DataModel.create(attrs.pop("datamodel", {"data": []}))
         # XXX: chaining datamodels not working
         # datamodel['data'].append({'id': 'root', 'expr': root})
 
@@ -127,40 +126,41 @@ class StateChart(metaclass=MetaStateChart):
         # *args: Any,
         **kwargs: Any,
     ) -> None:
-        if 'logging_enabled' in kwargs and kwargs['logging_enabled']:
-            if 'logging_level' in kwargs:
-                log.setLevel(kwargs.pop('logging_level').upper())
-        log.info('initializing statechart')
+        if "logging_enabled" in kwargs and kwargs["logging_enabled"]:
+            if "logging_level" in kwargs:
+                log.setLevel(kwargs.pop("logging_level").upper())
+        log.info("initializing statechart")
 
         self._sessionid = UUID(
-            bytes=os.urandom(16), version=4  # pylint: disable=no-member
+            bytes=os.urandom(16),
+            version=4,  # pylint: disable=no-member
         )
 
         self.datamodel.populate()
 
-        if hasattr(self.__class__, '_root'):
+        if hasattr(self.__class__, "_root"):
             self.__root = deepcopy(self.__class__._root)
             self._root = None
-        elif 'superstate' in kwargs:
-            self.__root = kwargs.pop('superstate')
+        elif "superstate" in kwargs:
+            self.__root = kwargs.pop("superstate")
         else:
-            raise InvalidConfig('attempted initialization with empty parent')
+            raise InvalidConfig("attempted initialization with empty parent")
 
         self.__current_state = self.__root
         if not isinstance(self.__root, ParallelState):
             self.__initial__: Optional[str] = kwargs.get(
-                'initial', self.__initial__
+                "initial", self.__initial__
             )
             if self.initial:
                 self.__current_state = self.get_state(
                     self.initial
                     # self.initial.transition.target
                 )
-        log.info('loaded states and transitions')
+        log.info("loaded states and transitions")
 
         # XXX: require composite state
         self.current_state.run_on_entry(self)
-        log.info('statechart initialization complete')
+        log.info("statechart initialization complete")
 
         # XXX: need to process after initial state
         # if isinstance(self.current_state, AtomicState):
@@ -170,25 +170,16 @@ class StateChart(metaclass=MetaStateChart):
         # do not attempt to resolve missing dunders
         if name.startswith('__'):
             raise AttributeError
-
         # handle state check for active states
         if name.startswith('is_'):
             return name[3:] in self.active
-
-        # handle automatic transitions
-        if name == '_auto_':
-
-            def wrapper(*args: Any, **kwargs: Any) -> Optional[Any]:
-                return self.trigger('', *args, **kwargs)
-
-            return wrapper
         raise AttributeError(f"cannot find attribute: {name}")
 
     @property
     def initial(self) -> Optional[str]:
         """Return initial state of current parent."""
         if self.__initial__ is None:
-            if hasattr(self.root, 'initial'):
+            if hasattr(self.root, "initial"):
                 self.__initial__ = self.root.initial
             elif self.root.states:
                 self.__initial__ = list(self.root.states.values())[0].name
@@ -201,6 +192,18 @@ class StateChart(metaclass=MetaStateChart):
         """Return the current state."""
         # TODO: rename to head or position potentially
         return self.__current_state
+
+    @current_state.setter
+    def current_state(self, state: State) -> None:
+        """Set the current state."""
+        if hasattr(self.current_state, 'states'):
+            if state in list(self.current_state.states.values()):
+                self.__current_state = state
+                return
+        if len(self.active) > 1 and self.active[1] == state:
+            self.__current_state = state
+        else:
+            raise InvalidTransition('cannot transition from final state')
 
     @property
     def root(self) -> SubstateMixin:
@@ -217,7 +220,7 @@ class StateChart(metaclass=MetaStateChart):
         """Return list of states."""
         return (
             tuple(self.__current_state.states.values())
-            if hasattr(self.__current_state, 'states')
+            if hasattr(self.__current_state, "states")
             else ()
         )
 
@@ -246,42 +249,42 @@ class StateChart(metaclass=MetaStateChart):
 
     def get_relpath(self, target: str) -> str:
         """Get relative statepath of target state to current state."""
-        if target in ('', self.current_state):  # self reference
-            relpath = '.'
+        if target in ("", self.current_state):  # self reference
+            relpath = "."
         else:
-            path = ['']
-            source_path = self.current_state.path.split('.')
-            target_path = self.get_state(target).path.split('.')
+            path = [""]
+            source_path = self.current_state.path.split(".")
+            target_path = self.get_state(target).path.split(".")
             for i, x in enumerate(
-                zip_longest(source_path, target_path, fillvalue='')
+                zip_longest(source_path, target_path, fillvalue="")
             ):
                 if x[0] != x[1]:
-                    if x[0] != '':  # target is a descendent
-                        path.extend(['' for x in source_path[i:]])
-                    if x[1] == '':  # target is a ascendent
-                        path.extend([''])
-                    if x[1] != '':  # target is child of a ascendent
+                    if x[0] != "":  # target is a descendent
+                        path.extend(["" for x in source_path[i:]])
+                    if x[1] == "":  # target is a ascendent
+                        path.extend([""])
+                    if x[1] != "":  # target is child of a ascendent
                         path.extend(target_path[i:])
                     if i == 0:
                         raise InvalidPath(
                             f"no relative path exists for: {target!s}"
                         )
                     break
-            relpath = '.'.join(path)
+            relpath = ".".join(path)
         return relpath
 
     def change_state(self, statepath: str) -> None:
         """Traverse statepath."""
         relpath = self.get_relpath(statepath)
-        if relpath == '.':  # handle self transition
+        if relpath == ".":  # handle self transition
             self.current_state.run_on_exit(self)
             self.current_state.run_on_entry(self)
         else:
-            s = 2 if relpath.endswith('.') else 1  # stupid black
-            macrostep = relpath.split('.')[s:]
+            s = 2 if relpath.endswith(".") else 1  # stupid black
+            macrostep = relpath.split(".")[s:]
             for microstep in macrostep:
                 try:
-                    if microstep == '':  # reverse
+                    if microstep == "":  # reverse
                         self.current_state.run_on_exit(self)
                         self.__current_state = self.active[1]
                     elif (
@@ -295,16 +298,16 @@ class StateChart(metaclass=MetaStateChart):
                         raise InvalidPath(f"statepath not found: {statepath}")
                 except Exception as err:
                     log.error(err)
-                    raise KeyError('parent is undefined') from err
+                    raise KeyError("parent is undefined") from err
         # if type(self.current_state) not in [AtomicState, ParallelState]:
         #     # TODO: need to transition from CompoundState to AtomicState
         #     print('state transition not complete')
-        log.info('changed state to %s', statepath)
+        log.info("changed state to %s", statepath)
 
     def get_state(self, statepath: str) -> State:
         """Get state."""
         state: State = self.root
-        macrostep = statepath.split('.')
+        macrostep = statepath.split(".")
 
         # general recursive search for single query
         if len(macrostep) == 1 and isinstance(state, SubstateMixin):
@@ -312,15 +315,15 @@ class StateChart(metaclass=MetaStateChart):
                 if x == macrostep[0]:
                     return x
         # set start point for relative lookups
-        elif statepath.startswith('.'):
-            relative = len(statepath) - len(statepath.lstrip('.')) - 1
+        elif statepath.startswith("."):
+            relative = len(statepath) - len(statepath.lstrip(".")) - 1
             state = self.active[relative:][0]
             rel = relative + 1
             macrostep = [state.name] + macrostep[rel:]
 
         # check relative lookup is done
         target = macrostep[-1]
-        if target in ('', state):
+        if target in ("", state):
             return state
 
         # path based search
@@ -333,7 +336,7 @@ class StateChart(metaclass=MetaStateChart):
             if state == target:
                 return state
             # walk path if exists
-            if hasattr(state, 'states') and microstep in state.states.keys():
+            if hasattr(state, "states") and microstep in state.states.keys():
                 state = state.states[microstep]
                 # check if target is found
                 if not macrostep:
@@ -342,27 +345,25 @@ class StateChart(metaclass=MetaStateChart):
                 break
         raise InvalidState(f"state could not be found: {statepath}")
 
-    def add_state(
-        self, state: State, statepath: Optional[str] = None
-    ) -> None:
+    def add_state(self, state: State, statepath: Optional[str] = None) -> None:
         """Add state to either parent or target state."""
         parent = self.get_state(statepath) if statepath else self.parent
         if isinstance(parent, SubstateMixin):
             parent.add_state(state)
-            log.info('added state %s', state.name)
+            log.info("added state %s", state.name)
         else:
             raise InvalidState(
                 f"cannot add state to non-composite state {parent.name}"
             )
 
     @property
-    def transitions(self) -> Tuple[Transition, ...]:
+    def transitions(self) -> Iterator[Transition]:
         """Return list of current transitions."""
-        return (
-            tuple(self.current_state.transitions)
-            if hasattr(self.current_state, 'transitions')
-            else ()
-        )
+        for state in self.active:
+            if hasattr(state, 'transitions'):
+                yield from state.transitions
+            else:
+                continue
 
     def add_transition(
         self, transition: Transition, statepath: Optional[str] = None
@@ -371,61 +372,32 @@ class StateChart(metaclass=MetaStateChart):
         target = self.get_state(statepath) if statepath else self.parent
         if isinstance(target, AtomicState):
             target.add_transition(transition)
-            log.info('added transition %s', transition.event)
+            log.info("added transition %s", transition.event)
         else:
-            raise InvalidState('cannot add transition to %s', target)
+            raise InvalidState("cannot add transition to %s", target)
 
-    @staticmethod
-    def _lookup_transitions(event: str, state: State) -> List[Transition]:
-        return (
-            state.get_transition(event)
-            if hasattr(state, 'get_transition')
-            else []
-        )
+    def get_transitions(self, event: str) -> tuple[Transition, ...]:
+        """Get each transition maching event."""
+        return tuple(filter(lambda t: t.event == event, self.transitions))
 
-    def process_transitions(
-        self, event: str, /, *args: Any, **kwargs: Any
-    ) -> Transition:
-        """Get transition event from active states."""
-        # TODO: must use datamodel to process transitions
-        # child => parent => grandparent
-        guarded: List[Transition] = []
-        for current in self.active:
-            transitions: List[Transition] = []
-
-            # search parallel states for transitions
-            if isinstance(current, ParallelState):
-                for state in current.states.values():
-                    transitions += self._lookup_transitions(event, state)
-            else:
-                transitions = self._lookup_transitions(event, current)
-
-            # evaluate conditions
-            allowed = [
-                t for t in transitions if t.evaluate(self, *args, **kwargs)
-            ]
-            if allowed:
-                # if len(allowed) > 1:
-                #     raise InvalidConfig(
-                #         'Conflicting transitions were allowed for event',
-                #         event
-                #     )
-                return allowed[0]
-            guarded += transitions
-        if len(guarded) != 0:
-            raise ConditionNotSatisfied('no transition possible from state')
-        raise InvalidTransition(f"transition could not be found: {event}")
-
-    def trigger(
-        self, event: str, /, *args: Any, **kwargs: Any
-    ) -> Optional[Any]:
+    def trigger(self, event: str, /, *args: Any, **kwargs: Any) -> None:
         """Transition from event to target state."""
-        # NOTE: 'on' should register an event with an event loop for callback
-        # trigger
-        # XXX: currently does not allow contional transient states
-        transition = self.process_transitions(event, *args, **kwargs)
-        if transition:
-            log.info('transitioning to %r', event)
-            result = transition(self, *args, **kwargs)
-            return result
-        raise InvalidTransition('transition %r not found', event)
+        # TODO: need to consider superstate transitions.
+        if self.current_state.type == 'final':
+            raise InvalidTransition('cannot transition from final state')
+
+        transitions = self.get_transitions(event)
+        if not transitions:
+            raise InvalidTransition('no transitions match event')
+        allowed = [t for t in transitions if t.evaluate(self, *args, **kwargs)]
+        if not allowed:
+            raise ConditionNotSatisfied(
+                'Condition is not satisfied for this transition'
+            )
+        if len(allowed) > 1:
+            raise InvalidTransition(
+                'More than one transition was allowed for this event'
+            )
+        log.info("processed guard for %s", allowed[0].event)
+        allowed[0].execute(self, *args, **kwargs)
+        log.info("processed transition event %s", allowed[0].event)

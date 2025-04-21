@@ -25,9 +25,9 @@ door.add_transition(
 )
 
 
-def test_it_responds_to_an_event() -> None:
-    """Test door responds to an event."""
-    assert hasattr(door.current_state, 'crack')
+# def test_it_responds_to_an_event() -> None:
+#     """Test door responds to an event."""
+#     assert hasattr(door.current_state, 'crack')
 
 
 def test_event_changes_state_when_called() -> None:
