@@ -4,16 +4,9 @@ from __future__ import annotations
 
 import logging
 import logging.config
+from collections.abc import Callable
 from dataclasses import InitVar, asdict, dataclass
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    List,
-    Optional,
-    Sequence,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Union
 
 from superstate.config import LOGGING_CONFIG
 from superstate.model.base import Action, Conditional
@@ -57,12 +50,12 @@ class Assign(Action):
 class ForEach(Action):
     """Data item providing state data."""
 
-    content: InitVar[List[str]]
+    content: InitVar[list[str]]
     array: str
     item: str
     index: Optional[str] = None  # expression
 
-    def __post_init__(self, content: List[str]) -> None:
+    def __post_init__(self, content: list[str]) -> None:
         self.__content = [Action.create(x) for x in content]  # type: ignore
 
     def callback(self, provider: Provider, *args: Any, **kwargs: Any) -> None:

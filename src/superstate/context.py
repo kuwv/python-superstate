@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from superstate.state import ParallelState
@@ -56,7 +56,7 @@ class Context:
         return self.current_state.parent or self.root
 
     @property
-    def children(self) -> Tuple[State, ...]:
+    def children(self) -> tuple[State, ...]:
         """Return list of states."""
         return (
             tuple(self.__current_state.states.values())
@@ -65,19 +65,19 @@ class Context:
         )
 
     @property
-    def states(self) -> Tuple[State, ...]:
+    def states(self) -> tuple[State, ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
     @property
-    def siblings(self) -> Tuple[State, ...]:
+    def siblings(self) -> tuple[State, ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
     @property
-    def active(self) -> Tuple[State, ...]:
+    def active(self) -> tuple[State, ...]:
         """Return active states."""
-        states: List[State] = []
+        states: list[State] = []
         parents = list(reversed(self.current_state))
         for i, x in enumerate(parents):
             n = i + 1

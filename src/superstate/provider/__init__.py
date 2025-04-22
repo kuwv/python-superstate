@@ -1,6 +1,6 @@
 """Provide common types for statechart components."""
 
-from typing import Dict, Type
+from typing import Type
 
 from superstate.provider.base import Provider
 from superstate.provider.default import Default
@@ -18,7 +18,7 @@ __all__ = (
     # 'XPath',
 )
 
-PROVIDERS: Dict[str, Type[Provider]] = {
+PROVIDERS: dict[str, Type[Provider]] = {
     'default': Default,
     # 'ecmasscript': ECMASript,
     # 'null': Null,
