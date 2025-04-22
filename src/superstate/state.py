@@ -4,17 +4,7 @@ from __future__ import annotations
 
 import logging
 from itertools import chain  # , zip_longest
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Generator, Optional, Union, cast
 
 from superstate.exception import (
     InvalidConfig,
@@ -39,16 +29,16 @@ log = logging.getLogger(__name__)
 #
 #     initial: Optional[Initial]
 #     kind: Optional[str]
-#     states: List[State]
-#     transitions: List[State]
+#     states: list[State]
+#     transitions: list[State]
 #     on_entry: Optional[ActionTypes]
 #     on_exit: Optional[ActionTypes]
 #
 #     def __new__(
 #         cls,
 #         name: str,
-#         bases: Tuple[type, ...],
-#         attrs: Dict[str, Any],
+#         bases: tuple[type, ...],
+#         attrs: dict[str, Any],
 #     ) -> 'MetaState':
 #         initial = attrs.pop('initial', None)
 #         kind = attrs.pop('type', None)
@@ -70,15 +60,15 @@ log = logging.getLogger(__name__)
 class TransitionMixin:
     """Provide an atomic state for a statechart."""
 
-    __transitions: List[Transition]
+    __transitions: list[Transition]
 
     @property
-    def transitions(self) -> Tuple[Transition, ...]:
+    def transitions(self) -> tuple[Transition, ...]:
         """Return transitions of this state."""
         return tuple(self.__transitions)
 
     @transitions.setter
-    def transitions(self, transitions: List[Transition]) -> None:
+    def transitions(self, transitions: list[Transition]) -> None:
         """Initialize atomic state."""
         self.__transitions = transitions
 
@@ -86,7 +76,7 @@ class TransitionMixin:
         """Add transition to this state."""
         self.__transitions.append(transition)
 
-    def get_transition(self, event: str) -> Tuple[Transition, ...]:
+    def get_transition(self, event: str) -> tuple[Transition, ...]:
         """Get each transition maching event."""
         return tuple(
             filter(
@@ -161,15 +151,15 @@ class State:
     #     '__type',
     # ]
 
-    __stack: List[State]
+    __stack: list[State]
     datamodel: DataModel
     name: str = cast(str, Identifier())
     # history: Optional['HistoryState']
     # final: Optional[FinalState]
-    # states: Dict[str, State]
-    # transitions: Tuple[Transition, ...]
-    # onentry: Tuple[ActionTypes, ...]
-    # onexit: Tuple[ActionTypes, ...]
+    # states: dict[str, State]
+    # transitions: tuple[Transition, ...]
+    # onentry: tuple[ActionTypes, ...]
+    # onexit: tuple[ActionTypes, ...]
 
     # pylint: disable-next=unused-argument
     def __new__(cls, *args: Any, **kwargs: Any) -> State:
@@ -193,7 +183,7 @@ class State:
     def __init__(
         self,  # pylint: disable=unused-argument
         name: str,
-        # settings: Optional[Dict[str, Any]] = None,
+        # settings: Optional[dict[str, Any]] = None,
         # /,
         **kwargs: Any,
     ) -> None:
@@ -488,7 +478,7 @@ class AtomicState(ContentMixin, TransitionMixin, State):
 class SubstateMixin(State):
     """Provide composite abstract to define nested state types."""
 
-    __states: Dict[str, State] = {}
+    __states: dict[str, State] = {}
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith('__'):
@@ -499,12 +489,12 @@ class SubstateMixin(State):
         raise AttributeError
 
     @property
-    def states(self) -> Dict[str, State]:
+    def states(self) -> dict[str, State]:
         """Return states."""
         return self.__states
 
     @states.setter
-    def states(self, states: List[State]) -> None:
+    def states(self, states: list[State]) -> None:
         """Define states."""
         if not self.__states:
             self.__states = {}
@@ -529,7 +519,7 @@ class SubstateMixin(State):
 # class SubstateMixin(State):
 #     """Provide composite abstract to define nested state types."""
 #
-#     __states: List[State] = []
+#     __states: list[State] = []
 #
 #     def __getattr__(self, name: str) -> Any:
 #         if name.startswith('__'):
@@ -540,12 +530,12 @@ class SubstateMixin(State):
 #         raise AttributeError
 #
 #     @property
-#     def states(self) -> List[State]:
+#     def states(self) -> list[State]:
 #         """Return states."""
 #         return self.__states
 #
 #     @states.setter
-#     def states(self, states: List[State]) -> None:
+#     def states(self, states: list[State]) -> None:
 #         """Define states."""
 #         if not self.__states:
 #             for state in states:
@@ -580,7 +570,7 @@ class CompoundState(SubstateMixin, AtomicState):
         self.states = kwargs.pop('states', [])
         super().__init__(name, **kwargs)
 
-    def run_on_entry(self, ctx: StateChart) -> Optional[Tuple[Any, ...]]:
+    def run_on_entry(self, ctx: StateChart) -> Optional[tuple[Any, ...]]:
         # if next(
         #     (x for x in self.states if isinstance(x, HistoryState)), False
         # ):
@@ -596,7 +586,7 @@ class CompoundState(SubstateMixin, AtomicState):
             )
             if initial and ctx.current_state != initial:
                 ctx.change_state(initial)
-        results: List[Any] = []
+        results: list[Any] = []
         results += filter(None, [super().run_on_entry(ctx)])
         # XXX: self transitions should still be possible here
         if (

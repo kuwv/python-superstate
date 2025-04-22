@@ -7,17 +7,7 @@ import logging.config
 import os
 from copy import deepcopy
 from itertools import zip_longest
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    # Sequence,
-    Tuple,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Iterator, Optional, cast
 from uuid import UUID
 
 from superstate.config import DEFAULT_BINDING, DEFAULT_PROVIDER
@@ -60,8 +50,8 @@ class MetaStateChart(type):
     def __new__(
         mcs,
         name: str,
-        bases: Tuple[type, ...],
-        attrs: Dict[str, Any],
+        bases: tuple[type, ...],
+        attrs: dict[str, Any],
     ) -> 'MetaStateChart':
         if '__name__' not in attrs:
             name = name.lower()
@@ -218,7 +208,7 @@ class StateChart(metaclass=MetaStateChart):
         return self.current_state.parent or self.root
 
     @property
-    def children(self) -> Tuple[State, ...]:
+    def children(self) -> tuple[State, ...]:
         """Return list of states."""
         return (
             tuple(self.__current_state.states.values())
@@ -227,19 +217,19 @@ class StateChart(metaclass=MetaStateChart):
         )
 
     @property
-    def states(self) -> Tuple[State, ...]:
+    def states(self) -> tuple[State, ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
     @property
-    def siblings(self) -> Tuple[State, ...]:
+    def siblings(self) -> tuple[State, ...]:
         """Return list of states."""
         return tuple(self.parent.states.values())
 
     @property
-    def active(self) -> Tuple[State, ...]:
+    def active(self) -> tuple[State, ...]:
         """Return active states."""
-        states: List[State] = []
+        states: list[State] = []
         parents = list(reversed(self.current_state))
         for i, x in enumerate(parents):
             n = i + 1

@@ -2,12 +2,11 @@
 
 import re
 from abc import ABC, abstractmethod  # pylint: disable=no-name-in-module
+from collections.abc import Callable
 from functools import singledispatchmethod
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
     Optional,
     Type,
     TypeVar,
@@ -64,7 +63,7 @@ class Provider(ABC):
     #     )
 
     @property
-    def globals(self) -> Dict[str, Any]:
+    def globals(self) -> dict[str, Any]:
         """Get global attributes and methods available for eval and exec."""
         # pylint: disable=import-outside-toplevel
         from datetime import datetime
@@ -75,7 +74,7 @@ class Provider(ABC):
         return glb
 
     @property
-    def locals(self) -> Dict[str, Any]:
+    def locals(self) -> dict[str, Any]:
         """Get local attributes and methods available for eval and exec."""
         lcl = dict(self.ctx.current_state.datamodel)
         lcl['In'] = self.In

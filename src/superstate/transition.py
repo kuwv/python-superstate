@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from superstate.exception import InvalidConfig, SuperstateException
 from superstate.model import Action, Conditional
@@ -95,10 +95,10 @@ class Transition:
 
     def execute(
         self, ctx: StateChart, *args: Any, **kwargs: Any
-    ) -> Optional[List[Any]]:
+    ) -> Optional[list[Any]]:
         """Transition the state of the statechart."""
         log.info("executing transition contents for event %r", self.event)
-        results: Optional[List[Any]] = None
+        results: Optional[list[Any]] = None
         if self.content:
             results = []
             provider = ctx.datamodel.provider(ctx)

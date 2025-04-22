@@ -10,8 +10,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    # Dict,
-    List,
     Optional,
     # Sequence,
     Type,
@@ -87,7 +85,7 @@ class Data:
 class DataModel(ChainMap):
     """Instantiate state types from class metadata."""
 
-    data: List[Data]
+    data: list[Data]
     binding: ClassVar[str] = 'early'
     provider: ClassVar[Type[Provider]] = Default
 
@@ -132,5 +130,5 @@ class DataModel(ChainMap):
 class DoneData:
     """Data model providing state data."""
 
-    param: List[Data]
+    param: list[Data]
     content: Optional[Any] = None
