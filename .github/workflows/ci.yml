@@ -167,4 +167,5 @@ jobs:
             --non-interactive \
             --repository pypi \
             --username __token__ \
-            --password "$TWINE_PASSWORD"
+            --password "$TWINE_PASSWORD" \
+            --verbose
