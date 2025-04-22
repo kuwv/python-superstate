@@ -158,9 +158,11 @@ jobs:
           pip install --upgrade pip
           pip install twine==4.0.0
       - name: Perform publish
+        env:
+          TWINE_PASSOWRD: "{{ secrest.TWINE_PASSWORD }}"
         run: |
           twine upload dist/* \
             --non-interactive \
             --repository pypi \
             --username __token__ \
-            --password "${{ secrets.TWINE_PASSWORD }}"
+            --password "${{ TWINE_PASSWORD }}"
