@@ -48,11 +48,13 @@ jobs:
           pip install --upgrade pip
           pip install .[build]
       - name: Bump version
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         run: |
           version info
           if [ "${GITHUB_REF##*/}" == "main" ]; then
             version bump --commit --tag
-            version push --password "${{ secrets.GITHUB_TOKEN }}"
+            version push --password "$GITHUB_TOKEN"
           else
             version bump
           fi
@@ -165,4 +167,4 @@ jobs:
             --non-interactive \
             --repository pypi \
             --username __token__ \
-            --password "${{ TWINE_PASSWORD }}"
+            --password "$TWINE_PASSWORD"
