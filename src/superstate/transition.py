@@ -5,7 +5,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
-from superstate.exception import InvalidConfig, SuperstateException
+from superstate.exception import (
+    InvalidConfig,
+    InvalidState,
+    SuperstateException,
+)
 from superstate.model import Action, Conditional
 from superstate.types import Selection, Identifier
 from superstate.utils import tuplize

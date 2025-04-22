@@ -156,7 +156,7 @@ class State:
     name: str = cast(str, Identifier())
     # history: Optional['HistoryState']
     # final: Optional[FinalState]
-    # states: dict[str, State]
+    states: dict[str, State]
     # transitions: tuple[Transition, ...]
     # onentry: tuple[ActionTypes, ...]
     # onexit: tuple[ActionTypes, ...]
