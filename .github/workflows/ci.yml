@@ -161,11 +161,10 @@ jobs:
           pip install twine==4.0.0
       - name: Perform publish
         env:
-          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+          TWINE_PASSWORD: "${{ secrets.TWINE_PASSWORD }}"
         run: |
           twine upload dist/* \
             --non-interactive \
             --repository pypi \
             --username __token__ \
-            --password "$TWINE_PASSWORD" \
-            --verbose
+            --password "$TWINE_PASSWORD"
